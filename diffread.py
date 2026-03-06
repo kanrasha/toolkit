@@ -1,5 +1,5 @@
 #!/usr/env/bin python3
-# version 0.0
+# version 0.0 
 import curses
 import difflib
 import os
