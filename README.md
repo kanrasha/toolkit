@@ -1,7 +1,7 @@
 Everything here is free, open to all, GNU-licensed and permissionless.
 
-### TOOLS AVAILABLE
-# Diff Reader
+# TOOLS AVAILABLE
+### Diff Reader
 - python based with Terminal UI
 - handles 2 files at a time
 - very much intended to NOT be an editor environment, rather a single use, lightweight helper.
