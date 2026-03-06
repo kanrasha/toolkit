@@ -2,7 +2,7 @@ Everything here is free, open to all, GNU-licensed and permissionless.
 
 # TOOLS AVAILABLE
 ### Diff Reader
-    - python based with Terminal UI
+    - python based with curses Terminal UI
     - handles 2 files at a time, from file or paste from clipboard
     - single use, lightweight helper
     - compare in two modes:
