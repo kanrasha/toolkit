@@ -10,10 +10,10 @@ Everything here is free, open to all, GNU-licensed and permissionless.
         2) "merge" - shows the full text, common and unique to each
     - there is a blank screen after Export > [Enter].  Hit Enter again to confirm, Escape to cancel.  Under some unknown circumstances, it just doesn't work.  This is a bug being worked out.
 
-### HTML Tester
+### HTML Tester (with AI chat integration)
     - live updating HTML debugging and building tool.  It is intended for simple to complex debugging all the way to a web design tool.
     - i intend on uploading a stripped down version.
-    - customizable AI integration to come, chat and settings premade
+    - customizable AI chat integration: connect to your choice model + endpoint
     - standard IDE features such as syntax highlighting, auto-indent, comment shortcut, auto-close for tags and special characters, undo and redo.
         - fixes / updates: 
             - auto-close for special characters could ignore the manual entry of the closing character.
