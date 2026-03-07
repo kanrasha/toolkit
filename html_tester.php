@@ -738,8 +738,8 @@
     async function sendAIRequest() {
         const apiKey = apiKeyInput.value.trim();
         const userMessage = aiInput.value.trim();
-        // Default to OpenRouter/OpenAI endpoint if empty
-        const endpoint = apiEndpointInput.value.trim() || 'https://openrouter.ai/api/v1/chat/completions';
+        // Default to HuggingFace endpoint if empty
+        const endpoint = apiEndpointInput.value.trim() || 'https://router.huggingface.co/v1/chat/completions';
 
         if (!apiKey) {
             aiOutput.innerHTML = `<div style="color:#f97316;">Error: API Key missing. Enter it in the toolbar.</div>`;
