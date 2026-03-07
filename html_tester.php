@@ -1,4 +1,4 @@
-
+# version 5.0
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -608,7 +608,7 @@
     // Load Saved API Settings
     apiKeyInput.value = localStorage.getItem('ai-api-key') || '';
     apiEndpointInput.value = localStorage.getItem('ai-api-endpoint') || '';
-    apiModelInput.value = localStorage.getItem('ai-api-model') || 'gpt-4o';
+    apiModelInput.value = localStorage.getItem('ai-api-model') || 'zai-org/GLM-5';
 
     // Save on change
     apiKeyInput.addEventListener('change', () => localStorage.setItem('ai-api-key', apiKeyInput.value));
@@ -738,7 +738,8 @@
     async function sendAIRequest() {
         const apiKey = apiKeyInput.value.trim();
         const userMessage = aiInput.value.trim();
-        const endpoint = apiEndpointInput.value.trim() || 'https://api.openai.com/v1/chat/completions';
+        // Default to OpenRouter/OpenAI endpoint if empty
+        const endpoint = apiEndpointInput.value.trim() || 'https://openrouter.ai/api/v1/chat/completions';
 
         if (!apiKey) {
             aiOutput.innerHTML = `<div style="color:#f97316;">Error: API Key missing. Enter it in the toolbar.</div>`;
@@ -746,6 +747,7 @@
         }
         if (!userMessage) return;
 
+        // --- 1. Prepare Content ---
         const selStart = codeEditor.selectionStart;
         const selEnd = codeEditor.selectionEnd;
         const selection = codeEditor.value.substring(selStart, selEnd);
@@ -754,13 +756,18 @@
         if (selection) content += `\n\nUser code reference selection:\n${selection}`;
         if (contextToggle.checked) content += `\n\nFull Code Context:\n${codeEditor.value}`;
 
-        const isHuggingFace = endpoint.includes('huggingface.co');
+        // --- 2. Determine Body Format ---
+        // LOGIC UPDATE: Treat 'router.huggingface.co' as OpenAI Compatible
+        const isLegacyHuggingFace = endpoint.includes('api-inference.huggingface.co');
         let body;
-        if (isHuggingFace) {
+
+        if (isLegacyHuggingFace) {
+            // Old Hugging Face Legacy Format
             body = JSON.stringify({ inputs: content, parameters: { max_new_tokens: 500, return_full_text: false } });
         } else {
-           const model = apiModelInput.value.trim() || 'gpt-4o';
-           body = JSON.stringify({
+            // OpenAI / OpenRouter / New HF Router Format
+            const model = apiModelInput.value.trim() || 'default-model';
+            body = JSON.stringify({
                 model: model,
                 messages: [
                     { role: 'system', content: 'You are a helpful coding assistant.' },
@@ -769,28 +776,51 @@
             });
         }
 
+        // --- 3. Update UI (Show "Thinking...") ---
         aiOutput.innerHTML += `<div style="margin-top:8px;"><strong style="color:var(--fg);">You:</strong> ${escapeHtml(userMessage)}</div>`;
         aiInput.value = '';
         const loadingId = 'load-' + Date.now();
         aiOutput.innerHTML += `<div id="${loadingId}" style="color:var(--muted); font-style:italic;">Thinking...</div>`;
         aiOutput.scrollTop = aiOutput.scrollHeight;
 
+        // --- 4. Send Request ---
         try {
             const response = await fetch(endpoint, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                },
                 body: body
             });
 
             const data = await response.json();
-            document.getElementById(loadingId).remove();
+
+            // Handle Model Loading State (Common in HF)
+            if (data.error && data.error === 'Model is currently loading') {
+                 document.getElementById(loadingId).remove();
+                 aiOutput.innerHTML += `<div style="color:#f97316;">Model is loading... wait ${data.estimated_time || 20}s and try again.</div>`;
+                 return;
+            }
+
+            // --- 5. Process Response ---
+            // We can now safely remove the loader since we have a response
+            const loader = document.getElementById(loadingId);
+            if (loader) loader.remove();
 
             let reply = "";
-            if (isHuggingFace) {
-                if (Array.isArray(data) && data[0] && data[0].generated_text) reply = data[0].generated_text;
-                else reply = JSON.stringify(data);
-            } else {
-                if (data.choices && data.choices[0]) reply = data.choices[0].message.content;
+
+            // Parse OpenAI/OpenRouter format
+            if (data.choices && data.choices[0]) {
+                reply = data.choices[0].message.content;
+            }
+            // Parse Legacy HF format (array)
+            else if (Array.isArray(data) && data[0] && data[0].generated_text) {
+                reply = data[0].generated_text;
+            }
+            // Fallback (Raw JSON or Error)
+            else {
+                reply = JSON.stringify(data);
             }
 
             if (reply) {
@@ -799,8 +829,16 @@
                 aiOutput.innerHTML += `<div style="color:#ef4444;">Error: ${JSON.stringify(data.error || data)}</div>`;
             }
         } catch (err) {
-            document.getElementById(loadingId).remove();
-            aiOutput.innerHTML += `<div style="color:#ef4444;">Request Failed: ${err.message}</div>`;
+            // Safety check: only remove if it exists
+            const loader = document.getElementById(loadingId);
+            if (loader) loader.remove();
+
+            console.error("AI Request Error:", err);
+            let errMsg = err.message;
+            if (err.message === 'Failed to fetch') {
+                errMsg = "Network Error. Check your Endpoint URL and Internet connection.";
+            }
+            aiOutput.innerHTML += `<div style="color:#ef4444;">Request Failed: ${errMsg}</div>`;
         }
         aiOutput.scrollTop = aiOutput.scrollHeight;
     }
