@@ -294,7 +294,7 @@
     .ai-title svg { color: var(--accent); }
 
     .ai-close {
-      background: none;
+      background: none;  /*testing-delete*/
       border: none;
       color: var(--muted);
       cursor: pointer;
@@ -369,6 +369,17 @@
       font-family: inherit;
       resize: none;
       outline: none;
+    }
+
+    .ai-input-cfg {
+      top:0;
+      background:transparent;
+      font-size: 0.8rem;
+      display: flex;
+      /* align-items: left; */
+      justify-content:space-between;
+      margin:1px;
+      margin-left:5px;
     }
 
     .context-toggle {
@@ -528,16 +539,23 @@
           </div>
       </div>
       <div class="ai-output" id="ai-output"></div>
-      <div class="ai-input-area">
+      <div class="ai-input-cfg">
+        <!-- <button class="cfg-btn" id="cfg-tokens" title="Token Settings">test</button> -->
         <label class="context-toggle" title="Send full code for context">
           <input type="checkbox" id="context-toggle">
           <span class="checkmark"></span>
-            Ctx
+            Context
         </label>
+        <button id="ai-clear-chat" class="ai-close" title="Clear Chat History">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+        </button>
+      </div>
+      <div class="ai-input-area">
+        <textarea id="ai-input" placeholder="Ask AI about selection..." rows="1"></textarea>
         <button id="ai-send" class="btn ai-send-btn" title="Send prompt">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
         </button>
-        <textarea id="ai-input" placeholder="Ask AI about selection..." rows="1"></textarea>
+        <!-- <textarea id="ai-input" placeholder="Ask AI about selection..." rows="1"></textarea> -->
       </div>
     </div>
   </div>
@@ -735,11 +753,19 @@
 
     const btnAiSend = document.getElementById('ai-send');
 
+    // Clear Chat History Button
+    document.getElementById('ai-clear-chat').addEventListener('click', () => {
+        conversationHistory = [];
+        aiOutput.innerHTML = `<div style="color: var(--muted); font-style: italic;">Chat cleared. Context reset.</div>`;
+        statusText.textContent = 'Context Cleared';
+        setTimeout(() => statusText.textContent = 'Ready', 1500);
+    });
+
     async function sendAIRequest() {
         const apiKey = apiKeyInput.value.trim();
         const userMessage = aiInput.value.trim();
-        // Default to HuggingFace endpoint if empty
-        const endpoint = apiEndpointInput.value.trim() || 'https://router.huggingface.co/v1/chat/completions';
+        // Default to OpenRouter/OpenAI endpoint if empty
+        const endpoint = apiEndpointInput.value.trim() || 'https://openrouter.ai/api/v1/chat/completions';
 
         if (!apiKey) {
             aiOutput.innerHTML = `<div style="color:#f97316;">Error: API Key missing. Enter it in the toolbar.</div>`;
@@ -908,7 +934,7 @@
       html = html.replace(/(&lt;![\s\S]*?&gt;)/g, (match) => `___DECL${declarations.push(match) - 1}___`);
       html = html.replace(/(\/\*[\s\S]*?\*\/)/g, (match) => `___COMM${comments.push(match) - 1}___`);
       html = html.replace(/(\n\s*\/\/.*$)/gm, (match) => `___COMM${comments.push(match) - 1}___`);
-      html = html.replace(/(&quot;[^&]*?&quot;|&#039;[^&]*?&#039;)/g, (match) => `___STR${strings.push(match) - 1}___`);
+      html = html.replace(/(&quot;[\s\S]*?&quot;|&#039;[\s\S]*?&#039;)/g, (match) => `___STR${strings.push(match) - 1}___`);  // resists catching '<' and '>' from & catch
 
       html = html.replace(/(\s)([\w-]+)(=)/g, '$1<span class="hl-attr">$2</span>$3');
       html = html.replace(/(&lt;\/?)([\w-]+)/g, '<span class="hl-tag">$1$2</span>');
@@ -1106,7 +1132,6 @@
             }
 
             // --- Standard Tags ---
-
             if (trimmed.toLowerCase().startsWith('<!doctype')) {
                 output.push('<!DOCTYPE html>');
                 continue;
@@ -1259,23 +1284,18 @@
           <meta charset="UTF-8">
           <title>Fallback HTML</title>
           <style>
-            body{
-              font-family: sans-serif;
-              background: #1a1a2e;
-              color: #eee;
-              padding: 2rem;                                                                                                    body {
+            body {
               font-family: sans-serif;
               background: #1a1a2e;
               color: #eee;
               padding: 2rem;
-              }
-              h1 { color: #22d3ee; }
+            }
+            h1 { color: #22d3ee; }
           </style>
         </head>
         <body>
           <h1>Fallback HTML</h1>
-          <p>Drag the center bar to resize.
-          </p>
+          <p>Drag the center bar to resize.</p>
         </body>
       </html>`;
 
@@ -1326,7 +1346,7 @@
       if (isvertical) {
         editorPanel.style.width = '50%';
       } else {
-        editorPanel.style.height = '50%';
+        editorPanel.style.height = '50%'; //while these seem backwards, fixing it breaks it.  make that make sense.  somehow, it does.
       }
 
       updateCharCount();
@@ -1443,3 +1463,4 @@
   </script>
 </body>
 </html>
+
