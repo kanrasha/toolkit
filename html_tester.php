@@ -1228,11 +1228,32 @@
       }
 
       if (e.key === 'Enter') {
-        e.preventDefault(); const lineStart = val.lastIndexOf('\n', start - 1) + 1;
+        e.preventDefault();
+        const lineStart = val.lastIndexOf('\n', start - 1) + 1;
         const currentIndent = (val.substring(lineStart, start).match(/^\s*/) || [''])[0];
-        let insertText = '\n' + currentIndent; const charBefore = val.substring(start - 1, start); const charAfter = val.substring(end, end + 1);
-        if (charBefore === '{' && charAfter === '}') { insertText = '\n' + currentIndent + '    \n' + currentIndent; codeEditor.setRangeText(insertText, start, end, 'end'); codeEditor.selectionStart = codeEditor.selectionEnd = start + currentIndent.length + 5; }
-        else { if (charBefore === '{') insertText += '    '; codeEditor.setRangeText(insertText, start, end, 'end'); }
+        let insertText = '\n' + currentIndent;
+        const charBefore = val.substring(start - 1, start);
+        const charAfter = val.substring(end, end + 1);
+
+        // 1. Handle Curly Braces { | }
+        if (charBefore === '{' && charAfter === '}') {
+          insertText = '\n' + currentIndent + '    \n' + currentIndent;
+          codeEditor.setRangeText(insertText, start, end, 'end');
+          codeEditor.selectionStart = codeEditor.selectionEnd = start + currentIndent.length + 5;
+        }
+        // 2. Handle Tags <tag>|</tag>  (New Logic)
+        else if (charBefore === '>' && charAfter === '<' && val.substring(start, start + 2) === '</') {
+          // Insert: Newline + Indent + 4 spaces (inner indent) + Newline + Indent (closing tag indent)
+          insertText = '\n' + currentIndent + '    \n' + currentIndent;
+          codeEditor.setRangeText(insertText, start, end, 'end');
+          // Place cursor on the middle line (after the indentation)
+          codeEditor.selectionStart = codeEditor.selectionEnd = start + currentIndent.length + 5;
+        }
+        // 3. Standard Enter
+        else {
+           if (charBefore === '{') insertText += '    ';
+           codeEditor.setRangeText(insertText, start, end, 'end');
+        }
         pushHistory(); triggerUpdate(); return;
       }
 
@@ -1463,4 +1484,3 @@
   </script>
 </body>
 </html>
-
