@@ -1,10 +1,10 @@
-<div style=color:grey;font-size:10># version 5.2.1 - <a href=https://github.com/kanrasha/toolkit target=_blank style=color:#492585>github/kanrasha/toolkit</a></div>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VIEW HTML App</title>
+  <title>HTML Tester</title>
   <style>
     :root {
       --bg: #0a0a0f;
@@ -480,7 +480,7 @@
             <polyline points="16 18 22 12 16 6"></polyline>
             <polyline points="8 6 2 12 8 18"></polyline>
           </svg>
-          <span class="logo-text">VIEW</span>
+          <!--<span class="logo-text">HVE</span>-->
         </div>
         <div class="status">
           <div class="status-dot"></div>
@@ -1625,7 +1625,7 @@
         if (blobUrl) URL.revokeObjectURL(blobUrl);
         blobUrl = URL.createObjectURL(new Blob([code], { type: 'text/html' }));
         mainPreview.src = blobUrl;
-        if (autoRun && codeEditor.value.split('\n').length <= 500) { statusText.textContent = 'Live Mode Enabled';
+        if (autoRun && codeEditor.value.split('\n').length <= 500) { statusText.textContent = 'Live Mode';
           setTimeout(() => { statusText.textContent = statusText.textContent; }, 1000);
         }
       } catch (e) { statusText.textContent = 'Error'; }
