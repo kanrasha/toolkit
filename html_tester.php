@@ -1,3 +1,4 @@
+# version 5.3
 # version 5.2.1
 <!DOCTYPE html>
 <html lang="en">
@@ -236,13 +237,6 @@
       touch-action: none; 
       cursor: row-resize;
     }
-    .resizer-handle {
-      display: flex; /* Hidden by default */
-      background: var(--muted);
-      border-radius: 2px;
-      opacity: 0.6;
-      transition: opacity 0.15s, background 0.15s;
-    }
     main.vertical .resizer {
       width: 6px;
       height: 36px;
@@ -259,22 +253,9 @@
       height: 10px; /* Increased from 4px for better visuals */
       /* ... existing cursor/flex rules ... */
     }
-    main.horizontal .resizer-handle {
-      display: block;
-      width: 40px;
-      height: 4px;
-    }
     @media (max-width: 500px) {
       .resizer {
         height: 12px !important; /* Slightly taller for mobile touch visuals */
-      }
-      .resizer-handle {
-        display: block;
-        width: 40px;
-        height: 4px;
-        /* Center it vertically */
-        position: relative;
-        top: 4px; 
       }
     }
 
@@ -297,13 +278,6 @@
     .open-tab-btn { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--accent); background: none; border: none; cursor: pointer; }
     .open-tab-btn:hover { text-decoration: underline; }
     .open-tab-btn svg { width: 12px; height: 12px; }
-
-    /*@media (max-width: 500px) {*/
-       /*Remove Layout Switcher UI */
-    /*  #btn-layout {*/
-    /*    display: none !important;*/
-    /*  }*/
-    /*}  */
 
     /* AI Panel Styles */
     #ai-panel {
@@ -480,7 +454,7 @@
             <polyline points="16 18 22 12 16 6"></polyline>
             <polyline points="8 6 2 12 8 18"></polyline>
           </svg>
-          <!--<span class="logo-text">HVE</span>-->
+          <span class="logo-text">HTML'er</span>
         </div>
         <div class="status">
           <div class="status-dot"></div>
@@ -489,7 +463,7 @@
       </div>
 
       <div class="header-right">
-        <button id="btn-run" class="btn active" title="Auto-run enabled">
+        <button id="btn-live" class="btn active" title="Auto-run enabled">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
           <span class="btn-text">Live</span>
         </button>
@@ -621,7 +595,7 @@
 
   <script>
     // State
-    let autoRun = localStorage.getItem('HTMLer-auto') !== 'false';
+    let liveMode = true;
     let blobUrl = null;
     let aiPanelOpen = false;
     let chatHistory = [];
@@ -667,7 +641,7 @@
     const aiSettings = document.getElementById('ai-settings');
 
     // Buttons
-    const btnRun = document.getElementById('btn-run');
+    const btnLive = document.getElementById('btn-live');
     const btnRefresh = document.getElementById('btn-refresh');
     const btnLayout = document.getElementById('btn-layout');
     const btnClear = document.getElementById('btn-clear');
@@ -676,16 +650,21 @@
     const btnNewTab = document.getElementById('btn-new-tab');
     const statusDot = document.querySelector('.status-dot');
 
+    // Variables
+    const totalChars = chatHistory.reduce((acc, msg) => acc + msg.content.length, 0);
+    const approxTokens = Math.floor(totalChars / 4);
+    const lines = (codeEditor.value.match(/\n/g) || []).length + 1;
+
     // Toggle Settings
     aiSettingsToggle.addEventListener('click', () => {
-        const isVisible = aiSettings.style.display === 'flex';
-        aiSettings.style.display = isVisible ? 'none' : 'flex';
+      const isVisible = aiSettings.style.display === 'flex';
+      aiSettings.style.display = isVisible ? 'none' : 'flex';
     });
 
     // Load Saved API Settings
     apiKeyInput.value = localStorage.getItem('ai-api-key') || '';
-    apiEndpointInput.value = localStorage.getItem('ai-api-endpoint') || '';
-    apiModelInput.value = localStorage.getItem('ai-api-model') || 'zai-org/GLM-5';
+    apiEndpointInput.value = localStorage.getItem('ai-api-endpoint') || 'https://router.huggingface.co/v1/chat/completions';
+    apiModelInput.value = localStorage.getItem('ai-api-model') || 'moonshotai/Kimi-K2.5:cheapest';
 
     // Save on change
     apiKeyInput.addEventListener('change', () => localStorage.setItem('ai-api-key', apiKeyInput.value));
@@ -699,10 +678,10 @@
     const btnRedo = document.getElementById('btn-redo');
 
     async function checkConnectivity() {
-      if (!navigator.onLine) return false;
+      if (!navigator.onLine) return { isOnline: false, latency: null };
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 1500);
+        const timeoutId = setTimeout(() => controller.abort(), 630);
         await fetch('https://www.google.com/generate_204', {
           method: 'HEAD', mode: 'no-cors', cache: 'no-store', signal: controller.signal
         });
@@ -724,6 +703,7 @@
           console.log('yes, wifi here!')
           statusDot.classList.remove('offline');
           statusText.textContent = 'Online';
+          setTimeout(() => statusText.textContent = 'Ready',1000);
           break;
         }
         console.log('connection not found, trying again in 500ms')
@@ -744,12 +724,8 @@
         aiPanel.classList.add('open');
       }
 
-      // 2. If pane is CLOSED, check internet before opening (but not dependent).
       statusText.textContent = 'Checking...';
-
-      continuousCheckConnectivity().then(isOnline => {
-        statusDot.classList.remove('offline');
-      });
+      continuousCheckConnectivity();
     }
 
     function updateAIContext() {
@@ -819,9 +795,9 @@
             div.style.marginTop = '8px';
 
             if (msg.role === 'user') {
-                div.innerHTML = `<strong style="color:var(--fg);">YOU:</strong> ${escapeHtml(msg.content)}`;
+                div.innerHTML = `<strong style="color:var(--fg);">You:</strong> ${escapeHtml(msg.content)}`;
             } else {
-                div.innerHTML = `<strong style="color:var(--accent);">goldfish:</strong> ${escapeHtml(msg.content)}`;
+                div.innerHTML = `<strong style="color:var(--accent);">Goldfish:</strong> ${escapeHtml(msg.content)}`;
             }
             aiOutput.appendChild(div);
         });
@@ -861,8 +837,9 @@
         chatHistory = [];
         localStorage.removeItem(CHAT_KEY);
         aiOutput.innerHTML = `<div style="color: red; font-style: italic;">Chat cleared. Context reset.</div>`; //testing - color was var(--muted)
+        const lastStatus = statusText.textContent;
         statusText.textContent = 'Chat cleared';
-        setTimeout(() => statusText.textContent = 'Ready with a fresh chat', 5000);
+        setTimeout(() => statusText.textContent = lastStatus, 5000);
     });
 
     async function sendAIRequest() {
@@ -882,6 +859,8 @@
             aiOutput.innerHTML = `<div style="color:#f97316;">ERROR: Failed to configure API.<br><br>EXAMPLE:<br><strong>model:</strong>zai-org/GLM-5<br><strong>endpoint:</strong>https://router.huggingface.co/v1/chat/completions<br><strong>key:</strong>huggingface_api_key</div>`;
             return;
         }
+        if (!userMessage) return;  // Do I need this?
+
 
         // --- 1. Add User Message to History ---
         chatHistory.push({ role: 'user', content: userMessage });
@@ -930,7 +909,7 @@
         // --- 3. Update UI (Show "Thinking...") ---
         aiInput.value = '';
         const loadingId = 'load-' + Date.now();
-        aiOutput.innerHTML += `<div id="${loadingId}" style="color:var(--muted); font-style:italic;">Thinking...</div>`;
+        aiOutput.innerHTML += `<div id="${loadingId}" style="color:var(--accent); font-style:italic;">Thinking...</div>`;
         aiOutput.scrollTop = aiOutput.scrollHeight;
 
         // --- 4. Send Request ---
@@ -946,8 +925,6 @@
 
             const data = await response.json();
 
-            // --- 5. Process Response ---
-            // We can now safely remove the loader since we have a response
             const loader = document.getElementById(loadingId);
             if (loader) loader.remove();
 
@@ -1000,7 +977,7 @@
              if (chatHistory.length > 0 && chatHistory[chatHistory.length - 1].role === 'user') {
                  chatHistory.pop();
                  saveChatHistory();
-                 renderChatHistory(); // Updates UI
+                 renderChatHistory();
              }
         }
     }
@@ -1232,7 +1209,7 @@
             if (tagName === 'script' || tagName === 'style') {
                 if (isClosing) {
                     // This block is technically unreachable for valid HTML because we handle close tags inside the 'else' block below.
-                    // But we keep it for safety.
+                    // But we will keep it for safety.
                     currentIndent = Math.max(0, currentIndent - 1);
                     output.push(indent.repeat(currentIndent) + trimmed);
                 } else {
@@ -1257,11 +1234,7 @@
                         output.push(formattedContent);
                     }
 
-                    // Add Closing Tag
-                    // Note: We do not increment indent here because the block is closed immediately
                     output.push(indent.repeat(currentIndent) + closeTag);
-
-                    // Skip processed tokens
                     i = endIndex;
                 }
                 continue;
@@ -1323,8 +1296,9 @@
 
     btnCopy.addEventListener('click', () => {
         navigator.clipboard.writeText(codeEditor.value).then(() => {
-            // statusText.textContent = 'Copied!';
-            // setTimeout(() => statusText.textContent = 'Ready', 1000);
+            const lastStatus = statusText.textContent;
+            statusText.textContent = 'Copied!';
+            setTimeout(() => statusText.textContent = lastStatus, 1000);
         });
     });
 
@@ -1492,12 +1466,20 @@
     }
 
     function schedulePreview() {
-      const lines = (codeEditor.value.match(/\n/g) || []).length + 1;
-      if (lines > 500) { if (autoRun) { autoRun = false; btnRun.classList.remove('active'); statusText.textContent = 'Large file: run manually'; } clearTimeout(previewDebounceTimer); return; }
-      let delay = 0; if (lines > 300) delay = 200; else if (lines > 100) delay = 50;
-      clearTimeout(previewDebounceTimer);
-      if (autoRun) { if (delay === 0) updatePreview(); else previewDebounceTimer = setTimeout(updatePreview, delay); }
-    }
+      if (totalChars > 90000) {
+        if (liveMode) {
+          liveMode = false;
+          btnLive.classList.remove('active');
+          const lastStatus = statusText.textContent;
+          statusText.textContent = 'Large file: Live Mode disabled';
+          setTimeout(() => statusText.textContent = lastStatus, 5000);
+          }
+          clearTimeout(previewDebounceTimer); return;
+        }
+        let delay = 0; if (totalChars > 60000) delay = 200; else if (totalChars > 30000) delay = 50;
+        clearTimeout(previewDebounceTimer);
+        if (liveMode) { if (delay === 0) updatePreview(); else previewDebounceTimer = setTimeout(updatePreview, delay); }
+      }
 
     function scheduleSave() { clearTimeout(saveTimer); saveTimer = setTimeout(() => { localStorage.setItem('HTMLer-code', codeEditor.value); }, 500); }
 
@@ -1621,96 +1603,95 @@
 
     function updatePreview() {
       const code = codeEditor.value;
+      const lastStatus = statusText.textContent;
       try {
         if (blobUrl) URL.revokeObjectURL(blobUrl);
         blobUrl = URL.createObjectURL(new Blob([code], { type: 'text/html' }));
         mainPreview.src = blobUrl;
-        if (autoRun && codeEditor.value.split('\n').length <= 500) { statusText.textContent = 'Live Mode';
-          setTimeout(() => { statusText.textContent = statusText.textContent; }, 1000);
+        if (liveMode && totalChars <= 90000) {
+          statusText.textContent = 'Ready';
+          setTimeout(() => statusText.textContent = lastStatus, 3000);
+        } else {
+          if (!liveMode) { statusText.textContent = 'Nerp! - near line 1522'; }
+          setTimeout(() => statusText.textContent = lastStatus, 3000);
         }
-      } catch (e) { statusText.textContent = 'Error'; }
+      } catch (e) { statusText.textContent = 'Error (near line 1518)'; }
     }
 
+    // take a look at this, something redundant here
     function updateCharCount() { charCount.textContent = `${codeEditor.value.length.toLocaleString()} chars`; }
 
     // MERGED: Enhanced Resizer
     function setupResizer() {
-      // Unified start handler for both Mouse and Touch
-      const startResize = (e) => {
-        // 1. Determine Effective Layout
-        // If viewport is <= 500px, we force "stacked" behavior (resize height)
-        // Otherwise, we respect the saved 'isvertical' state.
-        const isMobileView = window.innerWidth <= 500;
-        const effectivelyVertical = !isMobileView && isvertical;
-
+      resizer.addEventListener('mousedown', (e) => {
         let isResizing = true;
         let startX = 0, startY = 0, startSize = 0;
 
-        // 2. Get Coordinates (Touch vs Mouse)
-        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-
-        if (effectivelyVertical) { 
-          startX = clientX; 
-          startSize = editorPanel.offsetWidth; 
-        } else { 
-          startY = clientY; 
-          startSize = editorPanel.offsetHeight; 
-        }
+        if (isvertical) { startX = e.clientX; startSize = editorPanel.offsetWidth; }
+        else { startY = e.clientY; startSize = editorPanel.offsetHeight; }
 
         resizer.classList.add('dragging');
-        document.body.style.cursor = effectivelyVertical ? 'col-resize' : 'row-resize';
+        document.body.style.cursor = isvertical ? 'col-resize' : 'row-resize';
         document.body.style.userSelect = 'none';
-        e.preventDefault(); // Prevent text selection or scroll
+        e.preventDefault();
 
-        const onMove = (moveEvent) => {
+        const onMouseMove = (e) => {
           if (!isResizing) return;
-          
-          // Get moving coordinates
-          const moveX = moveEvent.touches ? moveEvent.touches[0].clientX : moveEvent.clientX;
-          const moveY = moveEvent.touches ? moveEvent.touches[0].clientY : moveEvent.clientY;
-
-          if (effectivelyVertical) {
-            const newWidth = Math.max(200, startSize + moveX - startX);
+          if (isvertical) {
+            const newWidth = Math.max(200, startSize + e.clientX - startX);
             editorPanel.style.width = `${newWidth}px`;
           } else {
-            // On mobile (or horizontal mode), we resize height
-            const newHeight = Math.max(100, startSize + moveY - startY);
+            const newHeight = Math.max(100, startSize + e.clientY - startY);
             editorPanel.style.height = `${newHeight}px`;
           }
         };
 
-        const onEnd = () => {
+        const onMouseUp = () => {
           isResizing = false;
           resizer.classList.remove('dragging');
           document.body.style.cursor = '';
           document.body.style.userSelect = '';
-          
-          // Cleanup listeners
-          document.removeEventListener('mousemove', onMove);
-          document.removeEventListener('mouseup', onEnd);
-          document.removeEventListener('touchmove', onMove);
-          document.removeEventListener('touchend', onEnd);
+          document.removeEventListener('mousemove', onMouseMove);
+          document.removeEventListener('mouseup', onMouseUp);
+          document.removeEventListener('touchmove', onMouseMove);
+          document.removeEventListener('touchend', onMouseUp);
         };
 
-        // Add both Mouse and Touch listeners
-        document.addEventListener('mousemove', onMove);
-        document.addEventListener('mouseup', onEnd);
-        // { passive: false } allows e.preventDefault() to work inside touchmove
-        document.addEventListener('touchmove', onMove, { passive: false });
-        document.addEventListener('touchend', onEnd);
-      };
-
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+        document.addEventListener('touchmove', onMouseMove, { passive: false });
+        document.addEventListener('touchend', onMouseUp);
+      });
+      
       // Attach listeners
       resizer.addEventListener('mousedown', startResize);
       resizer.addEventListener('touchstart', startResize, { passive: false });
     }
 
     // --- Event Listeners ---
-    btnRun.addEventListener('click', () => {
-        autoRun = !autoRun; btnRun.classList.toggle('active', autoRun); localStorage.setItem('HTMLer-auto', autoRun);
-        const lines = (codeEditor.value.match(/\n/g) || []).length + 1;
-        if (autoRun) { if (lines > 500) statusText.textContent = 'Auto enabled (>500 lines)'; updatePreview(); }
+    btnLive.addEventListener('click', () => {
+        liveMode = !liveMode; btnLive.classList.toggle('active', liveMode);
+        const lastStatus = statusText.textContent;
+        // if (!liveMode) { statusText.textContent = 'Live Mode Disabled'; }
+        if (liveMode) {
+          console.log('clicked Live on');
+          statusText.textContent = 'Live Mode Enabled';
+          setTimeout(() => statusText.textContent = lastStatus, 1000)
+        }
+        if (!liveMode) {
+          console.log('clicked Live off');
+          statusText.textContent = 'Live Mode Disabled';
+          setTimeout(() => statusText.textContent = lastStatus, 1000)
+        }
+        // localStorage.setItem('btnLive', liveMode);
+        // else { setTimeout(() => {statusText.textContent = 'Live Mode', statusText.textContent = 'Ready  '},5000); }
+        // if (lines > 500) {
+        //   if (liveMode)
+        //     statusText.textContent = 'Auto enabled (>500 lines)';         //setTimeout(() => { localStorage.setItem('HTMLer-code', codeEditor.value); }, 500); }
+        //     updatePreview();
+        // } else {
+        //   statusText.textContent = 'testing';
+        // }
     });
 
     btnRefresh.addEventListener('click', updatePreview);
