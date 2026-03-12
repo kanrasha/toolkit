@@ -4,7 +4,7 @@ Everything here is free, open to all, GNU-licensed and permissionless.
 - branch and version logic: staging branch holds all the individual versions as they evolve, branches solidify select versions.
 
 # TOOLS AVAILABLE
-    ### Diff Reader
+### Diff Reader
     - python based with curses Terminal UI
     - handles 2 files at a time, from file or paste from clipboard
     - single use, lightweight helper
@@ -13,7 +13,7 @@ Everything here is free, open to all, GNU-licensed and permissionless.
         2) "merge" - shows the full text, common and unique to each
     - there is a blank screen after Export > [Enter].  Hit Enter again to confirm, Escape to cancel.  Under some unknown circumstances, it just doesn't work.  This is a bug being worked out.
 
-    ### HTML Tester (with AI chat integration)
+### HTML Tester (with AI chat integration)
     - live updating HTML debugging and building tool.  It is intended for simple to complex debugging all the way to a web design tool.
     - i intend on uploading a stripped down version.
     - customizable AI chat integration: connect to your choice model + endpoint
