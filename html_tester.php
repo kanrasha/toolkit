@@ -1,10 +1,11 @@
 # version 5.3
+# version 5.2.1
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Live HTML Previewer</title>
+  <title>HTML Tester</title>
   <style>
     :root {
       --bg: #0a0a0f;
@@ -40,6 +41,13 @@
       flex-shrink: 0;
       gap: 12px;
       height: 52px;
+      overflow-x: auto; /* Enable horizontal scroll */
+      white-space: nowrap; /* Prevent buttons from wrapping */
+      scrollbar-width: none; /* Firefox: hide scrollbar */
+      -ms-overflow-style: none; /* IE/Edge: hide scrollbar */
+    }
+    header::-webkit-scrollbar {
+      display: none; /* Chrome/Safari: hide scrollbar */
     }
 
     .header-left { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
@@ -80,6 +88,15 @@
 
     .btn-text { display: none; }
     @media (min-width: 900px) { .btn-text { display: inline; } }
+    
+    /* Mobile Disable Logic for Layout Button */
+    @media (max-width: 500px) {
+      #btn-layout {
+        opacity: 0.5;
+        cursor: not-allowed !important;
+        pointer-events: none; /* Disables interaction */
+      }
+    }
 
     .divider { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
 
@@ -213,10 +230,12 @@
     .resizer {
       flex-shrink: 0;
       background: var(--border);
-      transition: background  0.15s ease;
+      transition: background  0.15s ease; /* what is going on with background being highlighted */
       display: flex;
       align-items: center;
       justify-content: center;
+      touch-action: none; 
+      cursor: row-resize;
     }
     main.vertical .resizer {
       width: 6px;
@@ -230,6 +249,16 @@
       width: 100%;
       cursor: row-resize;
     }
+    main.horizontal .resizer {
+      height: 10px; /* Increased from 4px for better visuals */
+      /* ... existing cursor/flex rules ... */
+    }
+    @media (max-width: 500px) {
+      .resizer {
+        height: 12px !important; /* Slightly taller for mobile touch visuals */
+      }
+    }
+
     .resizer:hover, .resizer.dragging { background: var(--accent); }
 
     .preview-panel { flex: 1; }
@@ -614,7 +643,7 @@
     // Buttons
     const btnLive = document.getElementById('btn-live');
     const btnRefresh = document.getElementById('btn-refresh');
-    const btnLayout = document.getElementById('btn-layout'); // MERGED
+    const btnLayout = document.getElementById('btn-layout');
     const btnClear = document.getElementById('btn-clear');
     const btnReset = document.getElementById('btn-reset');
     const btnExport = document.getElementById('btn-export');
@@ -669,17 +698,18 @@
       const statusDot = document.querySelector('.status-dot');
       while (true) {
         const isConnected = await checkConnectivity();
-        // await checkConnectivity();
+        await checkConnectivity();
         if (isConnected) {
           console.log('yes, wifi here!')
           statusDot.classList.remove('offline');
-          setTimeout(() => statusText.textContent = 'Online',1000);
+          statusText.textContent = 'Online';
+          setTimeout(() => statusText.textContent = 'Ready',1000);
           break;
         }
         console.log('connection not found, trying again in 500ms')
         statusDot.classList.add('offline');
         statusText.textContent = 'Offline';
-        await new Promise(resolve => setTimeout(resolve, 600));
+        await new Promise(resolve => setTimeout(resolve, 500));
       }
     }
 
@@ -815,22 +845,29 @@
     async function sendAIRequest() {
         const apiKey = apiKeyInput.value.trim();
         const userMessage = aiInput.value.trim();
-        const endpoint = apiEndpointInput.value.trim();
+        const endpoint = apiEndpointInput.value.trim(); // || 'https://openrouter.ai/api/v1/chat/completions';
+        const isConnected = await checkConnectivity();
+
+        if (!isConnected)  {
+          aiOutput.innerHTML = `<div style="color:red;">No internet connection detected.</div>`;
+          statusText.textContent = 'Offline';
+          statusDot.classList.add('offline');
+          return;
+        }
 
         if (!apiKey) {
             aiOutput.innerHTML = `<div style="color:#f97316;">ERROR: Failed to configure API.<br><br>EXAMPLE:<br><strong>model:</strong>zai-org/GLM-5<br><strong>endpoint:</strong>https://router.huggingface.co/v1/chat/completions<br><strong>key:</strong>huggingface_api_key</div>`;
             return;
         }
-        if (!userMessage) return;
+        if (!userMessage) return;  // Do I need this?
 
-        // REMOVED: The strict checkConnectivity block which caused false negatives.
-        // We will rely on the try/catch block below to handle actual network errors.
 
         // --- 1. Add User Message to History ---
         chatHistory.push({ role: 'user', content: userMessage });
         saveChatHistory();
         renderChatHistory(); // Updates UI
         updateContextStats(); // Update metrics
+        continuousCheckConnectivity();
 
         // --- Prepare Content ---
         const selStart = codeEditor.selectionStart;
@@ -841,17 +878,29 @@
         if (contextToggle.checked) content += `\n\nFull Code Context:\n${codeEditor.value}`;
 
         // --- 2. Determine Body Format ---
-        let body;
+        // LOGIC UPDATE: Treat 'router.huggingface.co' as OpenAI Compatible
+        // ... existing Body Format Logic (isLegacyHuggingFace check) ...
+        // NOTE: For OpenAI/OpenRouter, you should ideally send the chatHistory
+        // instead of just the last message if you want the AI to remember context.
+        // But for now, we stick to your existing logic structure.
+
+        let body;  // Defined here so it is visible to fetch below (was below next var)
         const isLegacyHuggingFace = endpoint.includes('api-inference.huggingface.co');
 
         if (isLegacyHuggingFace) {
+            // Old Hugging Face Legacy Format
             body = JSON.stringify({ inputs: content, parameters: { max_new_tokens: 500, return_full_text: false } });
         } else {
+            // OpenAI / OpenRouter / New HF Router Format
             const model = apiModelInput.value.trim() || 'default-model';
             body = JSON.stringify({
                 model: model,
                 messages: [
-                    { role: 'system', content: 'You are a helpful coding assistant.' },
+                    { role: 'system', content:
+                    'You are a coding assistant within an HTML testing environment.  You will receive input via full code context or user selection.  You will provide responses in a brief manner with as much detail as is necessary, including vital relevant information.  Your initial response should be brief.  be as literal, scientific and semantic as possible.  RESPONSE FORMAT: spaces between hyphens when used for effect.'
+                  },
+                    // CRITICAL: this is disabled for testing purposes, it eats tokens
+                    // ...chatHistory.slice(-10),
                     { role: 'user', content: content }
                 ]
             });
@@ -881,38 +930,50 @@
 
             let reply = "";
 
+            // Handle Model Loading State (Common in HF)
             if (data.error && data.error === 'Model is currently loading') {
                  reply = `[Model Loading] Wait ${data.estimated_time || 20}s and retry.`;
             }
+            // Parse OpenAI/OpenRouter format
             else if (data.choices && data.choices[0]) {
                 reply = data.choices[0].message.content;
             }
+            // Parse Legacy HF format (array)
             else if (Array.isArray(data) && data[0] && data[0].generated_text) {
                 reply = data[0].generated_text;
             }
+            // Fallback (Raw JSON or Error)
             else {
+                // If data.error exists, show that, else stringify the whole object
                 reply = data.error ? JSON.stringify(data.error) : JSON.stringify(data);
             }
 
+            // --- 2. Add AI Response to History ---
             if (reply) {
+                // aiOutput.innerHTML += `<div style="margin-top:8px;"><strong style="color:var(--accent);">AI:</strong> ${escapeHtml(reply)}</div>`;
                 chatHistory.push({ role: 'assistant', content: reply });
                 saveChatHistory();
-                renderChatHistory();
-                updateContextStats();
+                renderChatHistory(); // Re-render from data (this replaces the "Thinking..." text)
+                updateContextStats(); // Update metrics
             } else {
-                aiOutput.innerHTML += `<div style="color:#ef4444;">Error: Empty or unrecognized response.</div>`;
+                // Should technically not happen due to fallback above, but safety net
+                aiOutput.innerHTML += `<div style="color:#ef4444;">Error: ${JSON.stringify(data.error || data)}</div>`;
             }
         } catch (err) {
+            // Safety check: only remove if it exists
             const loader = document.getElementById(loadingId);
             if (loader) loader.remove();
 
             console.error("AI Request Error:", err);
             let errMsg = err.message;
             if (err.message === 'Failed to fetch') {
-                errMsg = "Network Error. Check Endpoint, API Key, or Internet connection.";
+                errMsg = "Network Error. Check your Endpoint URL and Internet connection.";
             }
+            // Display Error in UI (Transient)
             aiOutput.innerHTML += `<div style="color:#ef4444;">Request Failed: ${escapeHtml(errMsg)}</div>`;
 
+             // if (loader) loader.remove(); // <--legacy, replaced by below
+             // (Optional) Rollback: Remove the last user message since the request failed
              if (chatHistory.length > 0 && chatHistory[chatHistory.length - 1].role === 'user') {
                  chatHistory.pop();
                  saveChatHistory();
@@ -986,7 +1047,7 @@
       html = html.replace(/(&lt;![\s\S]*?&gt;)/g, (match) => `___DECL${declarations.push(match) - 1}___`);
       html = html.replace(/(\/\*[\s\S]*?\*\/)/g, (match) => `___COMM${comments.push(match) - 1}___`);
       html = html.replace(/(\n\s*\/\/.*$)/gm, (match) => `___COMM${comments.push(match) - 1}___`);
-      html = html.replace(/(&quot;[\s\S]*?&quot;|&#039;[\s\S]*?&#039;)/g, (match) => `___STR${strings.push(match) - 1}___`);
+      html = html.replace(/(&quot;[\s\S]*?&quot;|&#039;[\s\S]*?&#039;)/g, (match) => `___STR${strings.push(match) - 1}___`);  // resists catching '<' and '>' from & catch
 
       html = html.replace(/(\s)([\w-]+)(=)/g, '$1<span class="hl-attr">$2</span>$3');
       html = html.replace(/(&lt;\/?)([\w-]+)/g, '<span class="hl-tag">$1$2</span>');
@@ -1147,21 +1208,26 @@
             // --- Special Handling for Scripts & Styles ---
             if (tagName === 'script' || tagName === 'style') {
                 if (isClosing) {
+                    // This block is technically unreachable for valid HTML because we handle close tags inside the 'else' block below.
+                    // But we will keep it for safety.
                     currentIndent = Math.max(0, currentIndent - 1);
                     output.push(indent.repeat(currentIndent) + trimmed);
                 } else {
+                    // Opening Tag
                     output.push(indent.repeat(currentIndent) + trimmed);
 
                     const closeTag = `</${tagName}>`;
                     let content = '';
                     let endIndex = i + 1;
 
+                    // Scan forward for closing tag
                     while (endIndex < tokens.length) {
                          if (tokens[endIndex].trim().toLowerCase() === closeTag) break;
                          content += tokens[endIndex];
                          endIndex++;
                     }
 
+                    // Format Content
                     if (content.trim()) {
                         const formatter = tagName === 'script' ? formatJs : formatCss;
                         const formattedContent = formatter(content, currentIndent + 1);
@@ -1174,6 +1240,7 @@
                 continue;
             }
 
+            // --- Standard Tags ---
             if (trimmed.toLowerCase().startsWith('<!doctype')) {
                 output.push('<!DOCTYPE html>');
                 continue;
@@ -1202,6 +1269,7 @@
                     currentIndent++;
                 }
             } else {
+                // Text Content
                 const text = trimmed;
                 const prevToken = i > 0 ? tokens[i-1].trim() : '';
                 const prevTagMatch = prevToken.match(/^<([\w-]+)/i);
@@ -1264,30 +1332,37 @@
                   const lines = block.split('\n');
 
                   let newBlock;
-                  let cursorOffset = 0;
+                  let cursorOffset = 0; // To track cursor shift
 
                   // --- 2. APPLY CORRECT COMMENT FORMAT ---
 
                   if (isJS) {
+                      // JS Mode: Use // line comments
                       const allCommented = lines.every(line => line.trim().startsWith('//'));
                       if (allCommented) {
+                          // UNCOMMENT: Preserve indent, remove //
                           newBlock = lines.map(line => {
+                              // Match indent + //, replace with just indent
                               return line.replace(/^(\s*)\/\//, '$1');
                           }).join('\n');
-                          cursorOffset = -2;
+                          cursorOffset = -2; // Shift cursor left 2 spaces
                       } else {
+                          // COMMENT: Add // after indent
                           newBlock = lines.map(line => {
                               const ind = line.match(/^(\s*)/)[1];
                               return ind + '//' + line.substring(ind.length);
                           }).join('\n');
-                          cursorOffset = 2;
+                          cursorOffset = 2; // Shift cursor right 2 spaces
                       }
                   } else if (isCSS) {
+                      // CSS Mode: Use /* */ block comments
                       const allCommented = lines.every(line => line.trim().startsWith('/*') && line.trim().endsWith('*/'));
                       if (allCommented) {
+                          // UNCOMMENT
                           newBlock = lines.map(line => line.replace(/^(\s*)\/\*\s/, '$1').replace(/\s\*\/(\s*)$/, '$1')).join('\n');
                           cursorOffset = -3;
                       } else {
+                          // COMMENT
                           newBlock = lines.map(line => {
                               const ind = line.match(/^(\s*)/)[1];
                               return ind + '/* ' + line.substring(ind.length) + ' */';
@@ -1295,11 +1370,14 @@
                           cursorOffset = 3;
                       }
                   } else {
+                      // HTML Mode: Use <!-- -->
                       const allCommented = lines.every(line => line.trim().startsWith('<!--') || line.trim().endsWith('-->'));
                       if (allCommented) {
+                           // UNCOMMENT
                           newBlock = lines.map(line => line.replace('<!--', '').replace('-->', '')).join('\n');
                           cursorOffset = -4;
                       } else {
+                          // COMMENT
                           newBlock = lines.map(line => { const ind = line.match(/^(\s*)/)[1]; return ind + '<!--' + line.substring(ind.length) + '-->'; }).join('\n');
                           cursorOffset = 4;
                       }
@@ -1308,6 +1386,7 @@
                   // --- 3. UPDATE TEXT & CURSOR ---
                   codeEditor.setRangeText(newBlock, firstLineStart, lastLineEnd, 'end');
 
+                  // If user had no selection (just cursor), adjust position to feel natural
                   if (start === end) {
                       const newCursorPos = start + cursorOffset;
                       codeEditor.selectionStart = codeEditor.selectionEnd = newCursorPos;
@@ -1342,8 +1421,10 @@
         }
         // 2. Handle Tags <tag>|</tag>  (New Logic)
         else if (charBefore === '>' && charAfter === '<' && val.substring(start, start + 2) === '</') {
+          // Insert: Newline + Indent + 4 spaces (inner indent) + Newline + Indent (closing tag indent)
           insertText = '\n' + currentIndent + '    \n' + currentIndent;
           codeEditor.setRangeText(insertText, start, end, 'end');
+          // Place cursor on the middle line (after the indentation)
           codeEditor.selectionStart = codeEditor.selectionEnd = start + currentIndent.length + 5;
         }
         // 3. Standard Enter
@@ -1439,28 +1520,34 @@
       updateUndoRedoButtons();
       updateHighlight();
       loadChatHistory();
-      updateContextStats();
+      updateContextStats(); // Update metrics
 
-      // FIX: Check localStorage, default to 'vertical'
-      // const savedLayout = localStorage.getItem('HTMLer-layout') || 'vertical';
-      //
-      // if (savedLayout === 'horizontal') {
-      //     mainContent.classList.add('horizontal');
-      //     mainContent.classList.remove('vertical');
-      //     isvertical = false;
-      //     iconLayoutH.style.display = 'none';
-      //     iconLayoutV.style.display = 'block';
-      // } else {
-      //     // DEFAULT: vertical
-      //     mainContent.classList.add('vertical');
-      //     mainContent.classList.remove('horizontal');
-      //     isvertical = true;
-      //     iconLayoutH.style.display = 'block';
-      //     iconLayoutV.style.display = 'none';
-      // }
-      isvertical = true;
+      // FIX: Explicitly default to 'vertical' to fix pane refresh issues
+      // const savedLayout = localStorage.getItem('HTMLer-layout');
+      const savedLayout = 'horizontal';
+
+      // We treat anything other than 'horizontal' as vertical.
+      // This ensures a clean slate if localStorage is empty or corrupted.
+      if (savedLayout === 'horizontal') {
+          mainContent.classList.add('horizontal');
+          mainContent.classList.remove('vertical');
+          isvertical = false;
+          iconLayoutH.style.display = 'none';
+          iconLayoutV.style.display = 'block';
+      } else {
+          // DEFAULT: vertical
+          // Ensure we save this default so next refresh is consistent
+          localStorage.setItem('HTMLer-layout', 'vertical');
+
+          mainContent.classList.add('vertical');
+          mainContent.classList.remove('horizontal');
+          isvertical = true;
+          iconLayoutH.style.display = 'block';
+          iconLayoutV.style.display = 'none';
+      }
 
       // FIX: Robust Style Reset
+      // Always clear both dimensions first to prevent "stuck" sizes
       editorPanel.style.width = '';
       editorPanel.style.height = '';
       editorPanel.style.flex = 'none';
@@ -1469,7 +1556,7 @@
       if (isvertical) {
         editorPanel.style.width = '50%';
       } else {
-        editorPanel.style.height = '50%';
+        editorPanel.style.height = '50%'; //while these seem backwards, fixing it breaks it.  make that make sense.  somehow, it does.
       }
 
       updateCharCount();
@@ -1480,7 +1567,7 @@
     // MERGED: Layout Toggle Function
     function setLayout(vertical) {
       isvertical = vertical;
-      editorPanel.style.flex = 'none';
+      editorPanel.style.flex = 'none'; // Ensure flex is always set
 
       if (vertical) {
         mainContent.classList.remove('horizontal');
@@ -1488,13 +1575,13 @@
         iconLayoutH.style.display = 'block';
         iconLayoutV.style.display = 'none';
 
-        // Convert Height -> Width
+        // Convert Height -> Width (with safety clamp)
         let newWidth = editorPanel.offsetHeight;
         const maxWidth = mainContent.offsetWidth * 0.9;
         if (newWidth > maxWidth) newWidth = maxWidth;
 
         editorPanel.style.width = Math.max(200, newWidth) + 'px';
-        editorPanel.style.height = '';
+        editorPanel.style.height = ''; // Clear height
 
       } else {
         mainContent.classList.remove('vertical');
@@ -1502,13 +1589,13 @@
         iconLayoutH.style.display = 'none';
         iconLayoutV.style.display = 'block';
 
-        // Convert Width -> Height
+        // Convert Width -> Height (with safety clamp)
         let newHeight = editorPanel.offsetWidth;
         const maxHeight = mainContent.offsetHeight * 0.9;
         if (newHeight > maxHeight) newHeight = maxHeight;
 
         editorPanel.style.height = Math.max(100, newHeight) + 'px';
-        editorPanel.style.width = '';
+        editorPanel.style.width = ''; // Clear width
       }
 
       localStorage.setItem('HTMLer-layout', vertical ? 'vertical' : 'horizontal');
@@ -1566,11 +1653,19 @@
           document.body.style.userSelect = '';
           document.removeEventListener('mousemove', onMouseMove);
           document.removeEventListener('mouseup', onMouseUp);
+          document.removeEventListener('touchmove', onMouseMove);
+          document.removeEventListener('touchend', onMouseUp);
         };
 
         document.addEventListener('mousemove', onMouseMove);
         document.addEventListener('mouseup', onMouseUp);
+        document.addEventListener('touchmove', onMouseMove, { passive: false });
+        document.addEventListener('touchend', onMouseUp);
       });
+      
+      // Attach listeners
+      resizer.addEventListener('mousedown', startResize);
+      resizer.addEventListener('touchstart', startResize, { passive: false });
     }
 
     // --- Event Listeners ---
@@ -1602,7 +1697,12 @@
     btnRefresh.addEventListener('click', updatePreview);
 
     // MERGED: Layout Button Listener
-    btnLayout.addEventListener('click', () => setLayout(!isvertical));
+    btnLayout.addEventListener('click', () => {
+      if (window.innerWidth <= 500) {
+        return;
+      }
+        setLayout(!isvertical);
+    });
 
     btnClear.addEventListener('click', () => { if (confirm('Clear all code?')) { codeEditor.value = ''; pushHistory(); triggerUpdate(); } });
     btnReset.addEventListener('click', () => { if (confirm('Reset all settings and code to defaults?')) { localStorage.clear(); location.reload(); } });
