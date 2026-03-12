@@ -1,8 +1,10 @@
-# version 5.4
+# version 5.4.1
 <!DOCTYPE html>
+<div style=color:grey;font-size:10># version 5.4 - <a href=https://github.com/kanrasha/toolkit target=_blank style=color:#492585>github/kanrasha/toolkit</a></div>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name='version' content='5.4'>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>HTML Tester</title>
   <style>
@@ -40,11 +42,12 @@
       flex-shrink: 0;
       gap: 12px;
       height: 52px;
-      overflow-x: auto; /* Enable horizontal scroll */
-      white-space: nowrap; /* Prevent buttons from wrapping */
-      scrollbar-width: none; /* Firefox: hide scrollbar */
+      overflow-x: auto;
+      white-space: nowrap;
+      scrollbar-width: none;
       -ms-overflow-style: none; /* IE/Edge: hide scrollbar */
     }
+
     header::-webkit-scrollbar {
       display: none; /* Chrome/Safari: hide scrollbar */
     }
@@ -87,13 +90,13 @@
 
     .btn-text { display: none; }
     @media (min-width: 900px) { .btn-text { display: inline; } }
-    
+
     /* Mobile Disable Logic for Layout Button */
     @media (max-width: 500px) {
       #btn-layout {
         opacity: 0.5;
         cursor: not-allowed !important;
-        pointer-events: none; /* Disables interaction */
+        pointer-events: none;
       }
     }
 
@@ -233,9 +236,10 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      touch-action: none; 
+      touch-action: none;  /* learn more about this */
       cursor: row-resize;
     }
+
     main.vertical .resizer {
       width: 6px;
       height: 36px;
@@ -248,17 +252,13 @@
       width: 100%;
       cursor: row-resize;
     }
-    main.horizontal .resizer {
-      height: 10px; /* Increased from 4px for better visuals */
-      /* ... existing cursor/flex rules ... */
-    }
+    .resizer:hover, .resizer.dragging { background: var(--accent); }
+
     @media (max-width: 500px) {
       .resizer {
         height: 12px !important; /* Slightly taller for mobile touch visuals */
       }
     }
-
-    .resizer:hover, .resizer.dragging { background: var(--accent); }
 
     .preview-panel { flex: 1; }
 
@@ -376,6 +376,68 @@
       border-left: 2px solid var(--accent);
     }
 
+    ~~~ STYLING FOR AI RESPONSE ~~~
+    /* Markdown Code Block Styling */
+    .md-code-block {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      margin: 8px 0;
+      overflow: hidden;
+    }
+    .md-code-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 8px;
+      background: var(--bg-elevated);
+      border-bottom: 1px solid var(--border);
+      font-size: 10px;
+      color: var(--muted);
+    }
+    .md-lang {
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+    .md-copy-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--fg);
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .md-copy-btn:hover { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+
+    .md-code-content {
+      padding: 8px;
+      margin: 0;
+      overflow-x: auto;
+      white-space: pre;
+      font-family: "SF Mono", Monaco, "Cascadia Code", monospace;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    /* Inline Code Styling */
+    .ai-output code {
+      background: rgba(0,0,0,0.2);
+      padding: 2px 4px;
+      border-radius: 3px;
+      font-family: "SF Mono", Monaco, "Cascadia Code", monospace;
+      font-size: 11px;
+      color: var(--accent);
+    }
+    /* Override for code inside blocks */
+    .md-code-content code {
+      background: transparent;
+      padding: 0;
+      color: var(--fg);
+    }
+    ~~~ END MARKDOWN STYLING ~~~
+
     .ai-input-area {
       display: flex;
       align-items: center;
@@ -383,7 +445,7 @@
       flex-shrink: 0;
       border-top: 1px solid var(--border);
       background: var(--bg);
-      padding: 12px;
+      padding: 20px;
       min-height:100px;
       max-height: 10rem;
       overflow-y: auto;
@@ -401,6 +463,7 @@
       font-family: inherit;
       resize: none;
       outline: none;
+      padding:10px;
     }
 
     .ai-input-cfg {
@@ -408,10 +471,8 @@
       background:transparent;
       font-size: 0.8rem;
       display: flex;
-      /* align-items: left; */
       justify-content:space-between;
       margin:1px;
-      margin-left:5px;
     }
 
     .context-toggle {
@@ -422,6 +483,7 @@
       font-size: 11px;
       color: var(--muted);
       user-select: none;
+      padding: 7px;
     }
     .context-toggle input { position: absolute; opacity: 0; cursor: pointer; height: 0; width: 0; }
     .checkmark {
@@ -598,7 +660,13 @@
     let blobUrl = null;
     let aiPanelOpen = false;
     let chatHistory = [];
-    let isvertical = true;
+    let isvertical = false;
+
+    // AI starting state
+    let startupPrompt = `you are a helpful coding assistant within an HTML
+    coding environment.  keep responses brief and use sparse attention when
+    receiving large inputs (inform user).  you will receive input via user
+    selection or they will enable full code context awareness.`;
 
     // Performance Timers
     let previewDebounceTimer = null;
@@ -697,18 +765,17 @@
       const statusDot = document.querySelector('.status-dot');
       while (true) {
         const isConnected = await checkConnectivity();
-        await checkConnectivity();
+        // await checkConnectivity();
         if (isConnected) {
           console.log('yes, wifi here!')
           statusDot.classList.remove('offline');
-          statusText.textContent = 'Online';
-          setTimeout(() => statusText.textContent = 'Ready',1000);
+          setTimeout(() => statusText.textContent = 'Online',1000);
           break;
         }
         console.log('connection not found, trying again in 500ms')
         statusDot.classList.add('offline');
         statusText.textContent = 'Offline';
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, 600));
       }
     }
 
@@ -796,7 +863,7 @@
             if (msg.role === 'user') {
                 div.innerHTML = `<strong style="color:var(--fg);">You:</strong> ${escapeHtml(msg.content)}`;
             } else {
-                div.innerHTML = `<strong style="color:var(--accent);">Goldfish:</strong> ${escapeHtml(msg.content)}`;
+                div.innerHTML = `<strong style="color:var(--accent);">Goldfish:</strong> ${parseMarkdown(msg.content)}`;
             }
             aiOutput.appendChild(div);
         });
@@ -824,6 +891,44 @@
       });
     }
 
+    function parseMarkdown(text) {
+      // 1. Escape HTML first to prevent XSS
+      let html = escapeHtml(text);
+
+      // 2. Code Blocks (```...```)
+      // We use a placeholder to prevent processing inside code blocks
+      const codeBlocks = [];
+      html = html.replace(/```(\w*)\n?([\s\S]*?)```/g, (match, lang, code) => {
+        const index = codeBlocks.length;
+        codeBlocks.push({ lang: lang || 'code', code: code.trim() });
+        return `___CODE_BLOCK_${index}___`;
+      });
+
+      // 3. Bold (**text**)
+      html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+
+      // 4. Inline Code (`text`)
+      html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+      // 5. Newlines to <br> (for non-code text)
+      html = html.replace(/\n/g, '<br>');
+
+      // 6. Restore Code Blocks
+      html = html.replace(/___CODE_BLOCK_(\d+)___/g, (match, index) => {
+        const block = codeBlocks[index];
+        return `
+          <div class="md-code-block">
+            <div class="md-code-header">
+              <span class="md-lang">${block.lang}</span>
+              <button class="md-copy-btn">Copy</button>
+            </div>
+            <pre class="md-code-content"><code>${block.code}</code></pre>
+          </div>`;
+      });
+
+      return html;
+    }
+
     document.querySelector('.status').addEventListener('click', continuousCheckConnectivity);
 
     btnAI.addEventListener('click', toggleAIPanel);
@@ -844,9 +949,10 @@
     async function sendAIRequest() {
         const apiKey = apiKeyInput.value.trim();
         const userMessage = aiInput.value.trim();
-        const endpoint = apiEndpointInput.value.trim(); // || 'https://openrouter.ai/api/v1/chat/completions';
-        const isConnected = await checkConnectivity();
+        const endpoint = apiEndpointInput.value.trim();
 
+        // CHECK Internet
+        const isConnected = await checkConnectivity();
         if (!isConnected)  {
           aiOutput.innerHTML = `<div style="color:red;">No internet connection detected.</div>`;
           statusText.textContent = 'Offline';
@@ -858,15 +964,17 @@
             aiOutput.innerHTML = `<div style="color:#f97316;">ERROR: Failed to configure API.<br><br>EXAMPLE:<br><strong>model:</strong>zai-org/GLM-5<br><strong>endpoint:</strong>https://router.huggingface.co/v1/chat/completions<br><strong>key:</strong>huggingface_api_key</div>`;
             return;
         }
-        if (!userMessage) return;  // Do I need this?
+        if (!userMessage) return;
 
+        // REMOVED: The strict checkConnectivity block which caused false negatives.
+        // We will rely on the try/catch block below to handle actual network errors.
 
         // --- 1. Add User Message to History ---
         chatHistory.push({ role: 'user', content: userMessage });
         saveChatHistory();
         renderChatHistory(); // Updates UI
         updateContextStats(); // Update metrics
-        continuousCheckConnectivity();
+        // continuousCheckConnectivity(); // why was this placed here? leaving for now
 
         // --- Prepare Content ---
         const selStart = codeEditor.selectionStart;
@@ -877,13 +985,14 @@
         if (contextToggle.checked) content += `\n\nFull Code Context:\n${codeEditor.value}`;
 
         // --- 2. Determine Body Format ---
+        let body;
+
         // LOGIC UPDATE: Treat 'router.huggingface.co' as OpenAI Compatible
         // ... existing Body Format Logic (isLegacyHuggingFace check) ...
         // NOTE: For OpenAI/OpenRouter, you should ideally send the chatHistory
         // instead of just the last message if you want the AI to remember context.
         // But for now, we stick to your existing logic structure.
 
-        let body;  // Defined here so it is visible to fetch below (was below next var)
         const isLegacyHuggingFace = endpoint.includes('api-inference.huggingface.co');
 
         if (isLegacyHuggingFace) {
@@ -895,10 +1004,7 @@
             body = JSON.stringify({
                 model: model,
                 messages: [
-                    { role: 'system', content:
-                    'You are a coding assistant within an HTML testing environment.  You will receive input via full code context or user selection.  You will provide responses in a brief manner with as much detail as is necessary, including vital relevant information.  Your initial response should be brief.  be as literal, scientific and semantic as possible.  RESPONSE FORMAT: spaces between hyphens when used for effect.'
-                  },
-                    // CRITICAL: this is disabled for testing purposes, it eats tokens
+                    { role: 'system', content: startupPrompt },
                     // ...chatHistory.slice(-10),
                     { role: 'user', content: content }
                 ]
@@ -929,50 +1035,38 @@
 
             let reply = "";
 
-            // Handle Model Loading State (Common in HF)
             if (data.error && data.error === 'Model is currently loading') {
                  reply = `[Model Loading] Wait ${data.estimated_time || 20}s and retry.`;
             }
-            // Parse OpenAI/OpenRouter format
             else if (data.choices && data.choices[0]) {
                 reply = data.choices[0].message.content;
             }
-            // Parse Legacy HF format (array)
             else if (Array.isArray(data) && data[0] && data[0].generated_text) {
                 reply = data[0].generated_text;
             }
-            // Fallback (Raw JSON or Error)
             else {
-                // If data.error exists, show that, else stringify the whole object
                 reply = data.error ? JSON.stringify(data.error) : JSON.stringify(data);
             }
 
-            // --- 2. Add AI Response to History ---
             if (reply) {
-                // aiOutput.innerHTML += `<div style="margin-top:8px;"><strong style="color:var(--accent);">AI:</strong> ${escapeHtml(reply)}</div>`;
                 chatHistory.push({ role: 'assistant', content: reply });
                 saveChatHistory();
-                renderChatHistory(); // Re-render from data (this replaces the "Thinking..." text)
-                updateContextStats(); // Update metrics
+                renderChatHistory();
+                updateContextStats();
             } else {
-                // Should technically not happen due to fallback above, but safety net
-                aiOutput.innerHTML += `<div style="color:#ef4444;">Error: ${JSON.stringify(data.error || data)}</div>`;
+                aiOutput.innerHTML += `<div style="color:#ef4444;">Error: Empty or unrecognized response.</div>`;
             }
         } catch (err) {
-            // Safety check: only remove if it exists
             const loader = document.getElementById(loadingId);
             if (loader) loader.remove();
 
             console.error("AI Request Error:", err);
             let errMsg = err.message;
             if (err.message === 'Failed to fetch') {
-                errMsg = "Network Error. Check your Endpoint URL and Internet connection.";
+                errMsg = "Network Error. Check Endpoint, API Key, or Internet connection.";
             }
-            // Display Error in UI (Transient)
             aiOutput.innerHTML += `<div style="color:#ef4444;">Request Failed: ${escapeHtml(errMsg)}</div>`;
 
-             // if (loader) loader.remove(); // <--legacy, replaced by below
-             // (Optional) Rollback: Remove the last user message since the request failed
              if (chatHistory.length > 0 && chatHistory[chatHistory.length - 1].role === 'user') {
                  chatHistory.pop();
                  saveChatHistory();
@@ -1046,7 +1140,7 @@
       html = html.replace(/(&lt;![\s\S]*?&gt;)/g, (match) => `___DECL${declarations.push(match) - 1}___`);
       html = html.replace(/(\/\*[\s\S]*?\*\/)/g, (match) => `___COMM${comments.push(match) - 1}___`);
       html = html.replace(/(\n\s*\/\/.*$)/gm, (match) => `___COMM${comments.push(match) - 1}___`);
-      html = html.replace(/(&quot;[\s\S]*?&quot;|&#039;[\s\S]*?&#039;)/g, (match) => `___STR${strings.push(match) - 1}___`);  // resists catching '<' and '>' from & catch
+      html = html.replace(/(&quot;[\s\S]*?&quot;|&#039;[\s\S]*?&#039;)/g, (match) => `___STR${strings.push(match) - 1}___`);
 
       html = html.replace(/(\s)([\w-]+)(=)/g, '$1<span class="hl-attr">$2</span>$3');
       html = html.replace(/(&lt;\/?)([\w-]+)/g, '<span class="hl-tag">$1$2</span>');
@@ -1207,26 +1301,21 @@
             // --- Special Handling for Scripts & Styles ---
             if (tagName === 'script' || tagName === 'style') {
                 if (isClosing) {
-                    // This block is technically unreachable for valid HTML because we handle close tags inside the 'else' block below.
-                    // But we will keep it for safety.
                     currentIndent = Math.max(0, currentIndent - 1);
                     output.push(indent.repeat(currentIndent) + trimmed);
                 } else {
-                    // Opening Tag
                     output.push(indent.repeat(currentIndent) + trimmed);
 
                     const closeTag = `</${tagName}>`;
                     let content = '';
                     let endIndex = i + 1;
 
-                    // Scan forward for closing tag
                     while (endIndex < tokens.length) {
                          if (tokens[endIndex].trim().toLowerCase() === closeTag) break;
                          content += tokens[endIndex];
                          endIndex++;
                     }
 
-                    // Format Content
                     if (content.trim()) {
                         const formatter = tagName === 'script' ? formatJs : formatCss;
                         const formattedContent = formatter(content, currentIndent + 1);
@@ -1239,7 +1328,6 @@
                 continue;
             }
 
-            // --- Standard Tags ---
             if (trimmed.toLowerCase().startsWith('<!doctype')) {
                 output.push('<!DOCTYPE html>');
                 continue;
@@ -1268,7 +1356,6 @@
                     currentIndent++;
                 }
             } else {
-                // Text Content
                 const text = trimmed;
                 const prevToken = i > 0 ? tokens[i-1].trim() : '';
                 const prevTagMatch = prevToken.match(/^<([\w-]+)/i);
@@ -1331,37 +1418,30 @@
                   const lines = block.split('\n');
 
                   let newBlock;
-                  let cursorOffset = 0; // To track cursor shift
+                  let cursorOffset = 0;
 
                   // --- 2. APPLY CORRECT COMMENT FORMAT ---
 
                   if (isJS) {
-                      // JS Mode: Use // line comments
                       const allCommented = lines.every(line => line.trim().startsWith('//'));
                       if (allCommented) {
-                          // UNCOMMENT: Preserve indent, remove //
                           newBlock = lines.map(line => {
-                              // Match indent + //, replace with just indent
                               return line.replace(/^(\s*)\/\//, '$1');
                           }).join('\n');
-                          cursorOffset = -2; // Shift cursor left 2 spaces
+                          cursorOffset = -2;
                       } else {
-                          // COMMENT: Add // after indent
                           newBlock = lines.map(line => {
                               const ind = line.match(/^(\s*)/)[1];
                               return ind + '//' + line.substring(ind.length);
                           }).join('\n');
-                          cursorOffset = 2; // Shift cursor right 2 spaces
+                          cursorOffset = 2;
                       }
                   } else if (isCSS) {
-                      // CSS Mode: Use /* */ block comments
                       const allCommented = lines.every(line => line.trim().startsWith('/*') && line.trim().endsWith('*/'));
                       if (allCommented) {
-                          // UNCOMMENT
                           newBlock = lines.map(line => line.replace(/^(\s*)\/\*\s/, '$1').replace(/\s\*\/(\s*)$/, '$1')).join('\n');
                           cursorOffset = -3;
                       } else {
-                          // COMMENT
                           newBlock = lines.map(line => {
                               const ind = line.match(/^(\s*)/)[1];
                               return ind + '/* ' + line.substring(ind.length) + ' */';
@@ -1369,14 +1449,11 @@
                           cursorOffset = 3;
                       }
                   } else {
-                      // HTML Mode: Use <!-- -->
                       const allCommented = lines.every(line => line.trim().startsWith('<!--') || line.trim().endsWith('-->'));
                       if (allCommented) {
-                           // UNCOMMENT
                           newBlock = lines.map(line => line.replace('<!--', '').replace('-->', '')).join('\n');
                           cursorOffset = -4;
                       } else {
-                          // COMMENT
                           newBlock = lines.map(line => { const ind = line.match(/^(\s*)/)[1]; return ind + '<!--' + line.substring(ind.length) + '-->'; }).join('\n');
                           cursorOffset = 4;
                       }
@@ -1385,7 +1462,6 @@
                   // --- 3. UPDATE TEXT & CURSOR ---
                   codeEditor.setRangeText(newBlock, firstLineStart, lastLineEnd, 'end');
 
-                  // If user had no selection (just cursor), adjust position to feel natural
                   if (start === end) {
                       const newCursorPos = start + cursorOffset;
                       codeEditor.selectionStart = codeEditor.selectionEnd = newCursorPos;
@@ -1420,10 +1496,8 @@
         }
         // 2. Handle Tags <tag>|</tag>  (New Logic)
         else if (charBefore === '>' && charAfter === '<' && val.substring(start, start + 2) === '</') {
-          // Insert: Newline + Indent + 4 spaces (inner indent) + Newline + Indent (closing tag indent)
           insertText = '\n' + currentIndent + '    \n' + currentIndent;
           codeEditor.setRangeText(insertText, start, end, 'end');
-          // Place cursor on the middle line (after the indentation)
           codeEditor.selectionStart = codeEditor.selectionEnd = start + currentIndent.length + 5;
         }
         // 3. Standard Enter
@@ -1519,9 +1593,11 @@
       updateUndoRedoButtons();
       updateHighlight();
       loadChatHistory();
-      updateContextStats(); // Update metrics
+      updateContextStats();
 
-      // FIX: Explicitly default to 'vertical' to fix pane refresh issues
+      // FIX: Explicitly default to 'vertical' using one of the two following:
+
+      // FIX METHOD A:
       // const savedLayout = localStorage.getItem('HTMLer-layout');
       const savedLayout = 'horizontal';
 
@@ -1544,9 +1620,13 @@
           iconLayoutH.style.display = 'block';
           iconLayoutV.style.display = 'none';
       }
+      // END A.
 
-      // FIX: Robust Style Reset
-      // Always clear both dimensions first to prevent "stuck" sizes
+      // // FIX METHOD B:
+      // isvertical = true;
+      // // END B.
+
+      // clear editor panel sizes before setting
       editorPanel.style.width = '';
       editorPanel.style.height = '';
       editorPanel.style.flex = 'none';
@@ -1555,7 +1635,7 @@
       if (isvertical) {
         editorPanel.style.width = '50%';
       } else {
-        editorPanel.style.height = '50%'; //while these seem backwards, fixing it breaks it.  make that make sense.  somehow, it does.
+        editorPanel.style.height = '50%';
       }
 
       updateCharCount();
@@ -1566,7 +1646,7 @@
     // MERGED: Layout Toggle Function
     function setLayout(vertical) {
       isvertical = vertical;
-      editorPanel.style.flex = 'none'; // Ensure flex is always set
+      editorPanel.style.flex = 'none';
 
       if (vertical) {
         mainContent.classList.remove('horizontal');
@@ -1574,7 +1654,7 @@
         iconLayoutH.style.display = 'block';
         iconLayoutV.style.display = 'none';
 
-        // Convert Height -> Width (with safety clamp)
+        // Convert Height -> Width
         let newWidth = editorPanel.offsetHeight;
         const maxWidth = mainContent.offsetWidth * 0.9;
         if (newWidth > maxWidth) newWidth = maxWidth;
@@ -1588,7 +1668,7 @@
         iconLayoutH.style.display = 'none';
         iconLayoutV.style.display = 'block';
 
-        // Convert Width -> Height (with safety clamp)
+        // Convert Width -> Height
         let newHeight = editorPanel.offsetWidth;
         const maxHeight = mainContent.offsetHeight * 0.9;
         if (newHeight > maxHeight) newHeight = maxHeight;
@@ -1652,19 +1732,11 @@
           document.body.style.userSelect = '';
           document.removeEventListener('mousemove', onMouseMove);
           document.removeEventListener('mouseup', onMouseUp);
-          document.removeEventListener('touchmove', onMouseMove);
-          document.removeEventListener('touchend', onMouseUp);
         };
 
         document.addEventListener('mousemove', onMouseMove);
         document.addEventListener('mouseup', onMouseUp);
-        document.addEventListener('touchmove', onMouseMove, { passive: false });
-        document.addEventListener('touchend', onMouseUp);
       });
-      
-      // Attach listeners
-      resizer.addEventListener('mousedown', startResize);
-      resizer.addEventListener('touchstart', startResize, { passive: false });
     }
 
     // --- Event Listeners ---
@@ -1682,31 +1754,34 @@
           statusText.textContent = 'Live Mode Disabled';
           setTimeout(() => statusText.textContent = lastStatus, 1000)
         }
-        // localStorage.setItem('btnLive', liveMode);
-        // else { setTimeout(() => {statusText.textContent = 'Live Mode', statusText.textContent = 'Ready  '},5000); }
-        // if (lines > 500) {
-        //   if (liveMode)
-        //     statusText.textContent = 'Auto enabled (>500 lines)';         //setTimeout(() => { localStorage.setItem('HTMLer-code', codeEditor.value); }, 500); }
-        //     updatePreview();
-        // } else {
-        //   statusText.textContent = 'testing';
-        // }
     });
 
     btnRefresh.addEventListener('click', updatePreview);
 
     // MERGED: Layout Button Listener
-    btnLayout.addEventListener('click', () => {
-      if (window.innerWidth <= 500) {
-        return;
-      }
-        setLayout(!isvertical);
-    });
+    btnLayout.addEventListener('click', () => setLayout(!isvertical));
 
     btnClear.addEventListener('click', () => { if (confirm('Clear all code?')) { codeEditor.value = ''; pushHistory(); triggerUpdate(); } });
     btnReset.addEventListener('click', () => { if (confirm('Reset all settings and code to defaults?')) { localStorage.clear(); location.reload(); } });
     btnExport.addEventListener('click', () => { const a = document.createElement('a'); a.href = blobUrl || URL.createObjectURL(new Blob([codeEditor.value], { type: 'text/html' })); a.download = 'page.html'; a.click(); });
     btnNewTab.addEventListener('click', () => { if (blobUrl) window.open(blobUrl, '_blank'); });
+
+    // Event Delegation for Copy Buttons
+    aiOutput.addEventListener('click', (e) => {
+      if (e.target.classList.contains('md-copy-btn')) {
+        const codeBlock = e.target.closest('.md-code-block');
+        const code = codeBlock.querySelector('code').textContent;
+        navigator.clipboard.writeText(code).then(() => {
+          const originalText = e.target.textContent;
+          e.target.textContent = 'Copied!';
+          e.target.style.color = 'var(--accent)';
+          setTimeout(() => {
+            e.target.textContent = originalText;
+            e.target.style.color = '';
+          }, 1500);
+        });
+      }
+    });
 
     init();
   </script>
