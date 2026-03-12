@@ -1,7 +1,7 @@
 Everything here is free, open to all, GNU-licensed and permissionless.
 
 ### About this Repo
-    - branch and version logic: staging branch holds all the individual versions as they evolve, branches solidify select versions.
+- branch and version logic: staging branch holds all the individual versions as they evolve, branches solidify select versions.
 
 # TOOLS AVAILABLE
 ### Diff Reader
