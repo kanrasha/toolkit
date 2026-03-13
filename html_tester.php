@@ -786,7 +786,7 @@
     const btnRedo = document.getElementById('btn-redo');
 
     async function checkConnectivity() {
-      if (!navigator.onLine) return { isOnline: false, latency: null };
+      if (!navigator.onLine) return false;
       try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 630);
@@ -818,6 +818,7 @@
         statusText.textContent = 'Offline';
         await new Promise(resolve => setTimeout(resolve, 600));
       }
+      renderChatHistory();
     }
 
     function toggleAIPanel() {
@@ -995,9 +996,12 @@
         // CHECK Internet
         const isConnected = await checkConnectivity();
         if (!isConnected)  {
+          // Directly update UI without touching history
           aiOutput.innerHTML = `<div style="color:red;">No internet connection detected.</div>`;
           statusText.textContent = 'Offline';
           statusDot.classList.add('offline');
+          continuousCheckConnectivity();  // this must have gotten removed somehow
+          aiOutput.scrollTop = aiOutput.scrollHeight; // i'm not sure why i'm adding this, check without.
           return;
         }
 
