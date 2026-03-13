@@ -1,10 +1,9 @@
-# version 5.4.1
+# version 5.4.2
 <!DOCTYPE html>
-<div style=color:grey;font-size:10># version 5.4 - <a href=https://github.com/kanrasha/toolkit target=_blank style=color:#492585>github/kanrasha/toolkit</a></div>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name='version' content='5.4'>
+  <meta name='version' content='5.4.1'>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>HTML Tester</title>
   <style>
@@ -138,7 +137,7 @@
       gap: 4px;
       padding: 6px 12px;
       background: var(--bg);
-      border-bottom: 1px solid var(--border);
+      /* border-bottom: 1px solid var(--border); */
     }
 
     .tool-btn {
@@ -172,6 +171,22 @@
       tab-size: 4;
       white-space: pre-wrap;
       word-wrap: break-word;
+    }
+
+    /* Show and Style Editor Scrollbar */
+    .code-editor::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    .code-editor::-webkit-scrollbar-track {
+      background: var(--bg);
+    }
+    .code-editor::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 4px;
+    }
+    .code-editor::-webkit-scrollbar-thumb:hover {
+      background: var(--muted);
     }
 
     .api-input {
@@ -590,6 +605,15 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1H2a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 0 1 2-2M7.5 13A2.5 2.5 0 0 0 5 15.5 2.5 2.5 0 0 0 7.5 18a2.5 2.5 0 0 0 2.5-2.5A2.5 2.5 0 0 0 7.5 13m9 0a2.5 2.5 0 0 0-2.5 2.5 2.5 2.5 0 0 0 2.5 2.5 2.5 2.5 0 0 0 2.5-2.5 2.5 2.5 0 0 0-2.5-2.5Z"/></svg>
                 <span id="btn-ai-text">AI</span>
             </button>
+            <div class="editor-toolbar">
+
+             <button id="btn-scroll-top" class="tool-btn" title="Scroll to Top">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"></polyline></svg>
+            </button>
+             <button id="btn-scroll-bot" class="tool-btn" title="Scroll to Bottom">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+</div>
         </div>
         <div class="editor-content">
           <pre class="code-input-area highlight-layer" id="highlight-layer"></pre>
@@ -743,6 +767,17 @@
     apiKeyInput.addEventListener('change', () => localStorage.setItem('ai-api-key', apiKeyInput.value));
     apiEndpointInput.addEventListener('change', () => localStorage.setItem('ai-api-endpoint', apiEndpointInput.value));
     apiModelInput.addEventListener('change', () => localStorage.setItem('ai-api-model', apiModelInput.value));
+
+    // Editor scroll buttons
+    document.getElementById('btn-scroll-top').addEventListener('click', () => {
+      codeEditor.scrollTop = 0;
+      syncScroll();
+    });
+
+    document.getElementById('btn-scroll-bot').addEventListener('click', () => {
+      codeEditor.scrollTop = codeEditor.scrollHeight;
+      syncScroll();
+    });
 
     // Editor Toolbar Buttons
     const btnCopy = document.getElementById('btn-copy');
@@ -1463,7 +1498,7 @@
             }
         }
 
-        // --- 3. UPDATE TEXT & CURSOR ---
+        // UPDATE TEXT & CURSOR ---
         codeEditor.setRangeText(newBlock, firstLineStart, lastLineEnd, 'end');
 
         if (start === end) {
@@ -1558,7 +1593,7 @@
         if (liveMode) { if (delay === 0) updatePreview(); else previewDebounceTimer = setTimeout(updatePreview, delay); }
       }
 
-    function scheduleSave() { clearTimeout(saveTimer); saveTimer = setTimeout(() => { localStorage.setItem('HTMLer-code', codeEditor.value); }, 500); }
+    function scheduleSave() { clearTimeout(saveTimer); saveTimer = setTimeout(() => { localStorage.setItem('editor_code', codeEditor.value); }, 500); }
 
     // --- App Logic ---
     const fallbackHTML =
@@ -1585,13 +1620,15 @@
 
     // If not running on a PHP server, replace this section with the fallback HTML.
     const defaultHTML = <?php
-        $file = 'features_v3_starting.html';
+        $file = 'basic-start.html';
         if (file_exists($file)) { echo json_encode(file_get_contents($file)); } else { echo 'fallbackHTML'; }
     ?>;
 
     function init() {
       console.log('init()');
-      const savedCode = localStorage.getItem('HTMLer-code');
+      let containerHeight = mainContent.offsetHeight; console.log('**--containerHeight',containerHeight);
+      let containerWidth = mainContent.offsetWidth; console.log('**--containerWidth',containerWidth);
+      const savedCode = localStorage.getItem('editor_code');
       codeEditor.value = savedCode !== null ? savedCode : defaultHTML;
 
       history = [{ val: codeEditor.value, pos: 0 }]; historyIndex = 0;
@@ -1601,21 +1638,15 @@
       updateContextStats();
 
       // --- SMART DEFAULTS LOGIC ---
-
-      // 1. Determine the "Ideal" Default based on Screen Size
-      // Mobile (<500px): Use 'horizontal' (Stacked)
-      // Desktop (>500px): Use 'vertical' (Side-by-Side)
       const idealDefault = (window.innerWidth <= 500) ? 'horizontal' : 'vertical';
-      console.log('--idealDefault = ', idealDefault);
+      console.log('--idealDefault =', idealDefault);
 
-      // 2. Check if user has a saved preference
-      const savedLayout = localStorage.getItem('HTMLer-layout');
-      console.log('--savedLayout = ', savedLayout);
+      const savedLayout = localStorage.getItem('new_layout');
+      console.log('--savedLayout =', savedLayout);
 
-      // 3. Decide: Use saved OR fallback to ideal default
-      // Note: We force 'horizontal' on mobile regardless of save to fix your mobile requirement
+      // Note: We force 'horizontal' on mobile, as defined as 500px or less
       let layoutToUse = savedLayout || idealDefault;
-      console.log('--layoutToUse = ', layoutToUse);
+      console.log('--layoutToUse =', layoutToUse);
 
       if (window.innerWidth <= 500) {
           console.log('--small screen detected, forced horizontal view - line 1616');
@@ -1623,31 +1654,22 @@
       }
 
       // --- APPLY LAYOUT ---
-
-      // Clear classes first
       mainContent.classList.remove('vertical', 'horizontal');
 
       if (layoutToUse === 'horizontal') {
-          console.log('--mainContent.classList set to horizontal');
           mainContent.classList.add('horizontal');
           mainContent.classList.remove('vertical');
-          isvertical = false; console.log('--isvertical =',isvertical);
+          isvertical = false; console.log('--mainContent.classList set to horizontal');
           iconLayoutH.style.display = 'none';
           iconLayoutV.style.display = 'block';
       } else {
-          // Default: vertical (Side-by-Side)
-          console.log('--mainContent.classList set to vertical');
           mainContent.classList.add('vertical');
           mainContent.classList.remove('horizontal');
-          isvertical = true; console.log('--isvertical = ',isvertical);
+          isvertical = true; console.log('--mainContent.classList set to vertical');
           iconLayoutH.style.display = 'block';
           iconLayoutV.style.display = 'none';
       }
 
-      // --- RESET STYLES ---
-      // Always clear both dimensions to ensure a clean slate
-      // editorPanel.style.width = '';
-      // editorPanel.style.height = '';
       editorPanel.style.flex = 'none';
 
       // Apply default dimensions based on final layout
@@ -1665,9 +1687,14 @@
       console.log('END init()');
     }
 
-    // MERGED: Layout Toggle Function
-    function setLayout(vertical) {
-      console.log('setLayout(vertical:',vertical,')');
+    let containerHeight = mainContent.offsetHeight; console.log('**--containerHeight',containerHeight);
+    let containerWidth = mainContent.offsetWidth; console.log('**--containerWidth',containerWidth);
+
+    // Layout Toggle Function
+    function setLayout(vertical) {  // literally, vertical = !isvertical
+      // this setup gets input for the NEW layout after click. so vertical here means we need to save settings for !vertical.  if vertical, save horizontal/height.  else save vertical/width.
+      let currentHeight = editorPanel.offsetHeight; console.log('**--currentHeight',currentHeight);
+      let currentWidth = editorPanel.offsetWidth; console.log('**--currentWidth',currentWidth);
 
       // MOBILE SAFETY CHECK:
       // If on mobile, force 'vertical' to be false (Stacked view) regardless of what was clicked.
@@ -1676,38 +1703,39 @@
         vertical = false; console.log('----vertical =',vertical);
       }
 
-      isvertical = vertical; console.log('--vertical =',vertical);
+      // THIS RESETS isvertical TO MATCH NEW TRANSITION STATE
+      // PRIOR, isvertical represents the LAST state, vertical represents the NEW state
+      console.log('THEN:',isvertical,vertical);
+      isvertical = vertical;
       editorPanel.style.flex = 'none';
+      console.log('NOW:',isvertical,vertical);
+      // NOW THEY MATCH
 
+      // this shows me vertical after btnLayout 'click' -> setLayout(!isvertical)
+      // where the input variable "setLayout(vertical)" is set to "!isvertical"
       if (vertical) {
+        localStorage.setItem('last_height', currentHeight); console.log('saved horizontal:',currentHeight);
+
         console.log('--mainContent.classList set to vertical');
         mainContent.classList.remove('horizontal');
         mainContent.classList.add('vertical');
         iconLayoutH.style.display = 'block';
         iconLayoutV.style.display = 'none';
 
-        // Get current Height Ratio
-        // (Current Height / Total Available Height)
-        let currentHeight = editorPanel.offsetHeight; console.log('*--currentHeight',currentHeight);
-        let containerHeight = mainContent.offsetHeight; console.log('*--containerHeight',containerHeight);
-        // Safety check to avoid divide by zero
-        if (containerHeight === 0) containerHeight = window.innerHeight; console.log('*--containerHeight',containerHeight);
-        let ratio = currentHeight / containerHeight; console.log('*--ratio',ratio);
-        let newWidth = ratio * mainContent.offsetWidth; console.log('*--newWidth',newWidth);
+        // save for posterity
+        let ratio = currentHeight / containerHeight;
+
+        const last_width = localStorage.getItem('last_width'); console.log('recalled last_width:',last_width);
+        let newWidth = last_width; console.log('newWidth =', newWidth);
         const maxWidth = mainContent.offsetWidth * 0.9; console.log('*--maxWidth',maxWidth);
         if (newWidth > maxWidth) newWidth = maxWidth; console.log('*--newWidth > maxWidth, newWidth=',maxWidth);
-        editorPanel.style.width = Math.max(200, newWidth) + 'px'; console.log('editorPanel.style.width=',editorPanel.style.width);
-        editorPanel.style.height = '';
-
-        // // Convert Height -> Width
-        // let newWidth = editorPanel.offsetHeight;console.log('----newWidth=',newWidth);
-        // const maxWidth = mainContent.offsetWidth * 0.9;console.log('----maxWidth=',maxWidth);
-        // if (newWidth > maxWidth) newWidth = maxWidth;console.log('----newWidth > maxWidth, newWidth=',maxWidth);
-
-        editorPanel.style.width = Math.max(200, newWidth) + 'px';console.log('----editorPanel width=',editorPanel.style.width);
-        editorPanel.style.height = '';console.log('----editorPanel height=',editorPanel.style.height);
+        editorPanel.style.width = Math.max(200, newWidth) + 'px' || '50%'; console.log('----editorPanel width=',editorPanel.style.width);
+        editorPanel.style.height = ''; console.log('----editorPanel height=',editorPanel.style.height);
 
       } else {
+
+        localStorage.setItem('last_width', currentWidth); console.log('saved vertical:',currentWidth);
+
         // SWITCHING TO HORIZONTAL (Stacked)
         console.log('--mainContent.classList set to horizontal');
         mainContent.classList.remove('vertical');
@@ -1715,25 +1743,20 @@
         iconLayoutH.style.display = 'none';
         iconLayoutV.style.display = 'block';
 
-        let currentWidth = editorPanel.offsetWidth; console.log('*--currentWidth',currentWidth);
-        let containerWidth = mainContent.offsetWidth; console.log('*--containerWidth',containerWidth);
-        if (containerWidth === 0) containerWidth = window.innerWidth; console.log('*--containerWidth',containerWidth);
-        let ratio = currentWidth / containerWidth; console.log('*--ratio',ratio);
-        let newHeight = ratio * mainContent.offsetHeight; console.log('*--newHeight',newHeight);
+        // keep for posterity
+        let ratio = currentWidth / containerWidth;
+
+        // let newHeight = ratio * mainContent.offsetHeight; console.log('*--newHeight',newHeight);
+        const last_height = localStorage.getItem('last_height'); console.log('recalled last_height:',last_height);
+        let newHeight = last_height; console.log('newHeight =', newHeight);
         const maxHeight = mainContent.offsetHeight * 0.9; console.log('*--maxHeight',maxHeight);
         if (newHeight > maxHeight) newHeight = maxHeight; console.log('*--newHeight > maxHeight, newHeight=',maxHeight);
-
-        // // Convert Width -> Height
-        // let newHeight = editorPanel.offsetWidth; console.log('----newHeight=',newHeight);
-        // const maxHeight = mainContent.offsetHeight * 0.9; console.log('----maxHeight=',maxHeight);
-        // if (newHeight > maxHeight) newHeight = maxHeight; console.log('----newHeight > maxHeight, newHeight=',maxHeight);
-
-        editorPanel.style.height = Math.max(100, newHeight) + 'px';   console.log('----editorPanel height=',editorPanel.style.height);
+        editorPanel.style.height = Math.max(100, newHeight) + 'px' || '50%'; console.log('----editorPanel height=',editorPanel.style.height);
         editorPanel.style.width = ''; console.log('----editorPanel width=',editorPanel.style.width);
       }
 
-      localStorage.setItem('HTMLer-layout', vertical ? 'vertical' : 'horizontal');
-      console.log('--layout stored: ', localStorage.getItem('HTMLer-layout'));
+      localStorage.setItem('new_layout', vertical ? 'vertical' : 'horizontal');
+      console.log('--new_layout stored: ', localStorage.getItem('new_layout'));
       console.log('END setLayout()');
     }
 
@@ -1757,7 +1780,7 @@
     // take a look at this, something redundant here
     function updateCharCount() { charCount.textContent = `${codeEditor.value.length.toLocaleString()} chars`; }
 
-    // MERGED: Enhanced Resizer
+    // Enhanced Resizer
     function setupResizer() {
       console.log('-> setupResizer:');
       resizer.addEventListener('mousedown', (e) => {
@@ -1816,7 +1839,10 @@
     });
 
     btnRefresh.addEventListener('click', updatePreview);
-    btnLayout.addEventListener('click', () => setLayout(!isvertical));
+    btnLayout.addEventListener('click', () => {
+      console.log('CLICK: isverticle', isvertical, ', setLayout (', !isvertical, ')');
+      setLayout(!isvertical);
+    })
     btnClear.addEventListener('click', () => { if (confirm('Clear all code?')) { codeEditor.value = ''; pushHistory(); triggerUpdate(); } });
     btnReset.addEventListener('click', () => { if (confirm('Reset all settings and code to defaults?')) { localStorage.clear(); location.reload(); } });
     btnExport.addEventListener('click', () => { const a = document.createElement('a'); a.href = blobUrl || URL.createObjectURL(new Blob([codeEditor.value], { type: 'text/html' })); a.download = 'page.html'; a.click(); });
