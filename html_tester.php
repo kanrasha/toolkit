@@ -42,9 +42,9 @@
       flex-shrink: 0;
       gap: 12px;
       height: 52px;
-      overflow-x: auto;
-      white-space: nowrap;
-      scrollbar-width: none;
+      overflow-x: auto; /* Enable horizontal scroll */
+      white-space: nowrap; /* Prevent buttons from wrapping */
+      scrollbar-width: none; /* Firefox: hide scrollbar */
       -ms-overflow-style: none; /* IE/Edge: hide scrollbar */
     }
 
@@ -107,7 +107,13 @@
     main.vertical { flex-direction: row; }
     main.horizontal { flex-direction: column; }
 
-    .editor-panel, .preview-panel { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
+    .editor-panel, .preview-panel {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      min-height: 0;
+      /* overflow: hidden;  */
+    }
 
     /* Border logic based on layout */
     main.vertical .editor-panel { border-right: 1px solid var(--border); }
@@ -660,7 +666,7 @@
     let blobUrl = null;
     let aiPanelOpen = false;
     let chatHistory = [];
-    let isvertical = false;
+    let isvertical = null;
 
     // AI starting state
     let startupPrompt = `you are a helpful coding assistant within an HTML
@@ -761,18 +767,18 @@
 
     // this is an addition for an indefinite connectivity-check loop
     async function continuousCheckConnectivity() {
-      console.log('hello, wifi?')
+      console.log('hello, wifi?');
       const statusDot = document.querySelector('.status-dot');
       while (true) {
         const isConnected = await checkConnectivity();
         // await checkConnectivity();
         if (isConnected) {
-          console.log('yes, wifi here!')
+          console.log('yes, wifi here!');
           statusDot.classList.remove('offline');
           setTimeout(() => statusText.textContent = 'Online',1000);
           break;
         }
-        console.log('connection not found, trying again in 500ms')
+        console.log('connection not found, trying again in 500ms');
         statusDot.classList.add('offline');
         statusText.textContent = 'Offline';
         await new Promise(resolve => setTimeout(resolve, 600));
@@ -1399,76 +1405,74 @@
       if ((e.ctrlKey || e.metaKey) && e.key === 'y') { e.preventDefault(); redo(); return; }
 
       if ((e.ctrlKey || e.metaKey) && e.key === '/') {
-                  e.preventDefault();
-                  const start = codeEditor.selectionStart; const end = codeEditor.selectionEnd; const val = codeEditor.value;
+        e.preventDefault();
+        const start = codeEditor.selectionStart; const end = codeEditor.selectionEnd; const val = codeEditor.value;
 
-                  // --- 1. DETECT CONTEXT (CSS, JS, or HTML) ---
-                  const beforeText = val.substring(0, start);
-                  const lastStyleOpen = beforeText.lastIndexOf('<style');
-                  const lastStyleClose = beforeText.lastIndexOf('</style');
-                  const lastScriptOpen = beforeText.lastIndexOf('<script');
-                  const lastScriptClose = beforeText.lastIndexOf('</script');
+        const beforeText = val.substring(0, start);
+        const lastStyleOpen = beforeText.lastIndexOf('<style');
+        const lastStyleClose = beforeText.lastIndexOf('</style');
+        const lastScriptOpen = beforeText.lastIndexOf('<script');
+        const lastScriptClose = beforeText.lastIndexOf('</script');
 
-                  const isCSS = lastStyleOpen > lastStyleClose && lastStyleOpen !== -1;
-                  const isJS = lastScriptOpen > lastScriptClose && lastScriptOpen !== -1;
+        const isCSS = lastStyleOpen > lastStyleClose && lastStyleOpen !== -1;
+        const isJS = lastScriptOpen > lastScriptClose && lastScriptOpen !== -1;
 
-                  const firstLineStart = val.lastIndexOf('\n', start - 1) + 1;
-                  let lastLineEnd = val.indexOf('\n', end); if (lastLineEnd === -1) lastLineEnd = val.length;
-                  const block = val.substring(firstLineStart, lastLineEnd);
-                  const lines = block.split('\n');
+        const firstLineStart = val.lastIndexOf('\n', start - 1) + 1;
+        let lastLineEnd = val.indexOf('\n', end); if (lastLineEnd === -1) lastLineEnd = val.length;
+        const block = val.substring(firstLineStart, lastLineEnd);
+        const lines = block.split('\n');
 
-                  let newBlock;
-                  let cursorOffset = 0;
+        let newBlock;
+        let cursorOffset = 0;
 
-                  // --- 2. APPLY CORRECT COMMENT FORMAT ---
+        // --- 2. APPLY CORRECT COMMENT FORMAT ---
+        if (isJS) {
+            const allCommented = lines.every(line => line.trim().startsWith('//'));
+            if (allCommented) {
+                newBlock = lines.map(line => {
+                    return line.replace(/^(\s*)\/\//, '$1');
+                }).join('\n');
+                cursorOffset = -2;
+            } else {
+                newBlock = lines.map(line => {
+                    const ind = line.match(/^(\s*)/)[1];
+                    return ind + '//' + line.substring(ind.length);
+                }).join('\n');
+                cursorOffset = 2;
+            }
+        } else if (isCSS) {
+            const allCommented = lines.every(line => line.trim().startsWith('/*') && line.trim().endsWith('*/'));
+            if (allCommented) {
+                newBlock = lines.map(line => line.replace(/^(\s*)\/\*\s/, '$1').replace(/\s\*\/(\s*)$/, '$1')).join('\n');
+                cursorOffset = -3;
+            } else {
+                newBlock = lines.map(line => {
+                    const ind = line.match(/^(\s*)/)[1];
+                    return ind + '/* ' + line.substring(ind.length) + ' */';
+                }).join('\n');
+                cursorOffset = 3;
+            }
+        } else {
+            const allCommented = lines.every(line => line.trim().startsWith('<!--') || line.trim().endsWith('-->'));
+            if (allCommented) {
+                newBlock = lines.map(line => line.replace('<!--', '').replace('-->', '')).join('\n');
+                cursorOffset = -4;
+            } else {
+                newBlock = lines.map(line => { const ind = line.match(/^(\s*)/)[1]; return ind + '<!--' + line.substring(ind.length) + '-->'; }).join('\n');
+                cursorOffset = 4;
+            }
+        }
 
-                  if (isJS) {
-                      const allCommented = lines.every(line => line.trim().startsWith('//'));
-                      if (allCommented) {
-                          newBlock = lines.map(line => {
-                              return line.replace(/^(\s*)\/\//, '$1');
-                          }).join('\n');
-                          cursorOffset = -2;
-                      } else {
-                          newBlock = lines.map(line => {
-                              const ind = line.match(/^(\s*)/)[1];
-                              return ind + '//' + line.substring(ind.length);
-                          }).join('\n');
-                          cursorOffset = 2;
-                      }
-                  } else if (isCSS) {
-                      const allCommented = lines.every(line => line.trim().startsWith('/*') && line.trim().endsWith('*/'));
-                      if (allCommented) {
-                          newBlock = lines.map(line => line.replace(/^(\s*)\/\*\s/, '$1').replace(/\s\*\/(\s*)$/, '$1')).join('\n');
-                          cursorOffset = -3;
-                      } else {
-                          newBlock = lines.map(line => {
-                              const ind = line.match(/^(\s*)/)[1];
-                              return ind + '/* ' + line.substring(ind.length) + ' */';
-                          }).join('\n');
-                          cursorOffset = 3;
-                      }
-                  } else {
-                      const allCommented = lines.every(line => line.trim().startsWith('<!--') || line.trim().endsWith('-->'));
-                      if (allCommented) {
-                          newBlock = lines.map(line => line.replace('<!--', '').replace('-->', '')).join('\n');
-                          cursorOffset = -4;
-                      } else {
-                          newBlock = lines.map(line => { const ind = line.match(/^(\s*)/)[1]; return ind + '<!--' + line.substring(ind.length) + '-->'; }).join('\n');
-                          cursorOffset = 4;
-                      }
-                  }
+        // --- 3. UPDATE TEXT & CURSOR ---
+        codeEditor.setRangeText(newBlock, firstLineStart, lastLineEnd, 'end');
 
-                  // --- 3. UPDATE TEXT & CURSOR ---
-                  codeEditor.setRangeText(newBlock, firstLineStart, lastLineEnd, 'end');
+        if (start === end) {
+            const newCursorPos = start + cursorOffset;
+            codeEditor.selectionStart = codeEditor.selectionEnd = newCursorPos;
+        }
 
-                  if (start === end) {
-                      const newCursorPos = start + cursorOffset;
-                      codeEditor.selectionStart = codeEditor.selectionEnd = newCursorPos;
-                  }
-
-                  pushHistory(); triggerUpdate(); return;
-                }
+        pushHistory(); triggerUpdate(); return;
+      }
 
       const start = codeEditor.selectionStart; const end = codeEditor.selectionEnd; const val = codeEditor.value;
       if (e.key === 'Tab') {
@@ -1586,6 +1590,7 @@
     ?>;
 
     function init() {
+      console.log('init()');
       const savedCode = localStorage.getItem('HTMLer-code');
       codeEditor.value = savedCode !== null ? savedCode : defaultHTML;
 
@@ -1595,89 +1600,141 @@
       loadChatHistory();
       updateContextStats();
 
-      // FIX: Explicitly default to 'vertical' using one of the two following:
+      // --- SMART DEFAULTS LOGIC ---
 
-      // FIX METHOD A:
-      // const savedLayout = localStorage.getItem('HTMLer-layout');
-      const savedLayout = 'horizontal';
+      // 1. Determine the "Ideal" Default based on Screen Size
+      // Mobile (<500px): Use 'horizontal' (Stacked)
+      // Desktop (>500px): Use 'vertical' (Side-by-Side)
+      const idealDefault = (window.innerWidth <= 500) ? 'horizontal' : 'vertical';
+      console.log('--idealDefault = ', idealDefault);
 
-      // We treat anything other than 'horizontal' as vertical.
-      // This ensures a clean slate if localStorage is empty or corrupted.
-      if (savedLayout === 'horizontal') {
+      // 2. Check if user has a saved preference
+      const savedLayout = localStorage.getItem('HTMLer-layout');
+      console.log('--savedLayout = ', savedLayout);
+
+      // 3. Decide: Use saved OR fallback to ideal default
+      // Note: We force 'horizontal' on mobile regardless of save to fix your mobile requirement
+      let layoutToUse = savedLayout || idealDefault;
+      console.log('--layoutToUse = ', layoutToUse);
+
+      if (window.innerWidth <= 500) {
+          console.log('--small screen detected, forced horizontal view - line 1616');
+          layoutToUse = 'horizontal'; // Enforce mobile layout
+      }
+
+      // --- APPLY LAYOUT ---
+
+      // Clear classes first
+      mainContent.classList.remove('vertical', 'horizontal');
+
+      if (layoutToUse === 'horizontal') {
+          console.log('--mainContent.classList set to horizontal');
           mainContent.classList.add('horizontal');
           mainContent.classList.remove('vertical');
-          isvertical = false;
+          isvertical = false; console.log('--isvertical =',isvertical);
           iconLayoutH.style.display = 'none';
           iconLayoutV.style.display = 'block';
       } else {
-          // DEFAULT: vertical
-          // Ensure we save this default so next refresh is consistent
-          localStorage.setItem('HTMLer-layout', 'vertical');
-
+          // Default: vertical (Side-by-Side)
+          console.log('--mainContent.classList set to vertical');
           mainContent.classList.add('vertical');
           mainContent.classList.remove('horizontal');
-          isvertical = true;
+          isvertical = true; console.log('--isvertical = ',isvertical);
           iconLayoutH.style.display = 'block';
           iconLayoutV.style.display = 'none';
       }
-      // END A.
 
-      // // FIX METHOD B:
-      // isvertical = true;
-      // // END B.
-
-      // clear editor panel sizes before setting
-      editorPanel.style.width = '';
-      editorPanel.style.height = '';
+      // --- RESET STYLES ---
+      // Always clear both dimensions to ensure a clean slate
+      // editorPanel.style.width = '';
+      // editorPanel.style.height = '';
       editorPanel.style.flex = 'none';
 
-      // Now apply the specific dimension based on orientation
+      // Apply default dimensions based on final layout
       if (isvertical) {
-        editorPanel.style.width = '50%';
+        editorPanel.style.width = '50%'; // Default split for Side-by-Side
+        console.log('--editor pane width=',editorPanel.style.width);
       } else {
-        editorPanel.style.height = '50%';
+        editorPanel.style.height = '50%'; // Default split for Stacked
+        console.log('--editor pane height=',editorPanel.style.height);
       }
 
       updateCharCount();
       updatePreview();
       setupResizer();
+      console.log('END init()');
     }
 
     // MERGED: Layout Toggle Function
     function setLayout(vertical) {
-      isvertical = vertical;
+      console.log('setLayout(vertical:',vertical,')');
+
+      // MOBILE SAFETY CHECK:
+      // If on mobile, force 'vertical' to be false (Stacked view) regardless of what was clicked.
+      if (window.innerWidth <= 500) {
+        console.log('--window.innerWidth <= 500');
+        vertical = false; console.log('----vertical =',vertical);
+      }
+
+      isvertical = vertical; console.log('--vertical =',vertical);
       editorPanel.style.flex = 'none';
 
       if (vertical) {
+        console.log('--mainContent.classList set to vertical');
         mainContent.classList.remove('horizontal');
         mainContent.classList.add('vertical');
         iconLayoutH.style.display = 'block';
         iconLayoutV.style.display = 'none';
 
-        // Convert Height -> Width
-        let newWidth = editorPanel.offsetHeight;
-        const maxWidth = mainContent.offsetWidth * 0.9;
-        if (newWidth > maxWidth) newWidth = maxWidth;
+        // Get current Height Ratio
+        // (Current Height / Total Available Height)
+        let currentHeight = editorPanel.offsetHeight; console.log('*--currentHeight',currentHeight);
+        let containerHeight = mainContent.offsetHeight; console.log('*--containerHeight',containerHeight);
+        // Safety check to avoid divide by zero
+        if (containerHeight === 0) containerHeight = window.innerHeight; console.log('*--containerHeight',containerHeight);
+        let ratio = currentHeight / containerHeight; console.log('*--ratio',ratio);
+        let newWidth = ratio * mainContent.offsetWidth; console.log('*--newWidth',newWidth);
+        const maxWidth = mainContent.offsetWidth * 0.9; console.log('*--maxWidth',maxWidth);
+        if (newWidth > maxWidth) newWidth = maxWidth; console.log('*--newWidth > maxWidth, newWidth=',maxWidth);
+        editorPanel.style.width = Math.max(200, newWidth) + 'px'; console.log('editorPanel.style.width=',editorPanel.style.width);
+        editorPanel.style.height = '';
 
-        editorPanel.style.width = Math.max(200, newWidth) + 'px';
-        editorPanel.style.height = ''; // Clear height
+        // // Convert Height -> Width
+        // let newWidth = editorPanel.offsetHeight;console.log('----newWidth=',newWidth);
+        // const maxWidth = mainContent.offsetWidth * 0.9;console.log('----maxWidth=',maxWidth);
+        // if (newWidth > maxWidth) newWidth = maxWidth;console.log('----newWidth > maxWidth, newWidth=',maxWidth);
+
+        editorPanel.style.width = Math.max(200, newWidth) + 'px';console.log('----editorPanel width=',editorPanel.style.width);
+        editorPanel.style.height = '';console.log('----editorPanel height=',editorPanel.style.height);
 
       } else {
+        // SWITCHING TO HORIZONTAL (Stacked)
+        console.log('--mainContent.classList set to horizontal');
         mainContent.classList.remove('vertical');
         mainContent.classList.add('horizontal');
         iconLayoutH.style.display = 'none';
         iconLayoutV.style.display = 'block';
 
-        // Convert Width -> Height
-        let newHeight = editorPanel.offsetWidth;
-        const maxHeight = mainContent.offsetHeight * 0.9;
-        if (newHeight > maxHeight) newHeight = maxHeight;
+        let currentWidth = editorPanel.offsetWidth; console.log('*--currentWidth',currentWidth);
+        let containerWidth = mainContent.offsetWidth; console.log('*--containerWidth',containerWidth);
+        if (containerWidth === 0) containerWidth = window.innerWidth; console.log('*--containerWidth',containerWidth);
+        let ratio = currentWidth / containerWidth; console.log('*--ratio',ratio);
+        let newHeight = ratio * mainContent.offsetHeight; console.log('*--newHeight',newHeight);
+        const maxHeight = mainContent.offsetHeight * 0.9; console.log('*--maxHeight',maxHeight);
+        if (newHeight > maxHeight) newHeight = maxHeight; console.log('*--newHeight > maxHeight, newHeight=',maxHeight);
 
-        editorPanel.style.height = Math.max(100, newHeight) + 'px';
-        editorPanel.style.width = ''; // Clear width
+        // // Convert Width -> Height
+        // let newHeight = editorPanel.offsetWidth; console.log('----newHeight=',newHeight);
+        // const maxHeight = mainContent.offsetHeight * 0.9; console.log('----maxHeight=',maxHeight);
+        // if (newHeight > maxHeight) newHeight = maxHeight; console.log('----newHeight > maxHeight, newHeight=',maxHeight);
+
+        editorPanel.style.height = Math.max(100, newHeight) + 'px';   console.log('----editorPanel height=',editorPanel.style.height);
+        editorPanel.style.width = ''; console.log('----editorPanel width=',editorPanel.style.width);
       }
 
       localStorage.setItem('HTMLer-layout', vertical ? 'vertical' : 'horizontal');
+      console.log('--layout stored: ', localStorage.getItem('HTMLer-layout'));
+      console.log('END setLayout()');
     }
 
     function updatePreview() {
@@ -1702,6 +1759,7 @@
 
     // MERGED: Enhanced Resizer
     function setupResizer() {
+      console.log('-> setupResizer:');
       resizer.addEventListener('mousedown', (e) => {
         let isResizing = true;
         let startX = 0, startY = 0, startSize = 0;
@@ -1718,10 +1776,10 @@
           if (!isResizing) return;
           if (isvertical) {
             const newWidth = Math.max(200, startSize + e.clientX - startX);
-            editorPanel.style.width = `${newWidth}px`;
+            editorPanel.style.width = `${newWidth}px`;console.log('-> editorPanel width=',editorPanel.style.width);
           } else {
             const newHeight = Math.max(100, startSize + e.clientY - startY);
-            editorPanel.style.height = `${newHeight}px`;
+            editorPanel.style.height = `${newHeight}px`;console.log('-> editorPanel height=',editorPanel.style.height);
           }
         };
 
@@ -1737,6 +1795,7 @@
         document.addEventListener('mousemove', onMouseMove);
         document.addEventListener('mouseup', onMouseUp);
       });
+      console.log('-> END setupResizer()');
     }
 
     // --- Event Listeners ---
@@ -1745,22 +1804,19 @@
         const lastStatus = statusText.textContent;
         // if (!liveMode) { statusText.textContent = 'Live Mode Disabled'; }
         if (liveMode) {
-          console.log('clicked Live on');
+          console.log('liveMode=',liveMode);
           statusText.textContent = 'Live Mode Enabled';
           setTimeout(() => statusText.textContent = lastStatus, 1000)
         }
         if (!liveMode) {
-          console.log('clicked Live off');
+          console.log('liveMode=',liveMode);
           statusText.textContent = 'Live Mode Disabled';
           setTimeout(() => statusText.textContent = lastStatus, 1000)
         }
     });
 
     btnRefresh.addEventListener('click', updatePreview);
-
-    // MERGED: Layout Button Listener
     btnLayout.addEventListener('click', () => setLayout(!isvertical));
-
     btnClear.addEventListener('click', () => { if (confirm('Clear all code?')) { codeEditor.value = ''; pushHistory(); triggerUpdate(); } });
     btnReset.addEventListener('click', () => { if (confirm('Reset all settings and code to defaults?')) { localStorage.clear(); location.reload(); } });
     btnExport.addEventListener('click', () => { const a = document.createElement('a'); a.href = blobUrl || URL.createObjectURL(new Blob([codeEditor.value], { type: 'text/html' })); a.download = 'page.html'; a.click(); });
