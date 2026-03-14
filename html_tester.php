@@ -249,27 +249,28 @@
     .hl-punctuation { color: #808080; }
     .hl-css-prop { color: #dcdcaa; }
 
-    /* RESTORED: Dynamic Resizer Logic */
     .resizer {
       flex-shrink: 0;
       background: var(--border);
-      transition: background  0.15s ease; /* what is going on with background being highlighted */
+      transition: transparent  0.15s ease; /* what is going on with background being highlighted */
       display: flex;
       align-items: center;
       justify-content: center;
       touch-action: none;  /* learn more about this */
       cursor: row-resize;
+      outline: 1px solid var(--muted);
     }
 
     main.vertical .resizer {
-      width: 6px;
+      width: 8px;
       height: 36px;
       align-self: flex-start;
       cursor: col-resize;
       border-radius: 0 0 3px 3px;
+      outline: none;
     }
     main.horizontal .resizer {
-      height: 4px;
+      height: 7px;
       width: 100%;
       cursor: row-resize;
     }
