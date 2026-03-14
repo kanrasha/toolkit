@@ -1,10 +1,11 @@
-# version 5.0
+# version 5.4.2
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name='version' content='5.4.1'>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Live HTML Previewer</title>
+  <title>HTML Tester</title>
   <style>
     :root {
       --bg: #0a0a0f;
@@ -40,6 +41,14 @@
       flex-shrink: 0;
       gap: 12px;
       height: 52px;
+      overflow-x: auto; /* Enable horizontal scroll */
+      white-space: nowrap; /* Prevent buttons from wrapping */
+      scrollbar-width: none; /* Firefox: hide scrollbar */
+      -ms-overflow-style: none; /* IE/Edge: hide scrollbar */
+    }
+
+    header::-webkit-scrollbar {
+      display: none; /* Chrome/Safari: hide scrollbar */
     }
 
     .header-left { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
@@ -47,8 +56,12 @@
     .logo svg { color: var(--accent); }
     .logo-text { font-weight: 600; font-size: 14px; letter-spacing: -0.02em; }
 
-    .status { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+    .status { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); cursor:pointer}
     .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success); animation: pulse 2s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+    /* .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success); animation: pulse 2s infinite; } */
+    .status-dot.offline { background: #f97316; } /* Added this line */
     @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
     .header-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
@@ -77,6 +90,15 @@
     .btn-text { display: none; }
     @media (min-width: 900px) { .btn-text { display: inline; } }
 
+    /* Mobile Disable Logic for Layout Button */
+    @media (max-width: 500px) {
+      #btn-layout {
+        opacity: 0.5;
+        cursor: not-allowed !important;
+        pointer-events: none;
+      }
+    }
+
     .divider { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
 
     /* RESTORED: Dynamic Layout Logic */
@@ -84,7 +106,13 @@
     main.vertical { flex-direction: row; }
     main.horizontal { flex-direction: column; }
 
-    .editor-panel, .preview-panel { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
+    .editor-panel, .preview-panel {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      min-height: 0;
+      /* overflow: hidden;  */
+    }
 
     /* Border logic based on layout */
     main.vertical .editor-panel { border-right: 1px solid var(--border); }
@@ -109,7 +137,7 @@
       gap: 4px;
       padding: 6px 12px;
       background: var(--bg);
-      border-bottom: 1px solid var(--border);
+      /* border-bottom: 1px solid var(--border); */
     }
 
     .tool-btn {
@@ -143,6 +171,22 @@
       tab-size: 4;
       white-space: pre-wrap;
       word-wrap: break-word;
+    }
+
+    /* Show and Style Editor Scrollbar */
+    .code-editor::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    .code-editor::-webkit-scrollbar-track {
+      background: var(--bg);
+    }
+    .code-editor::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 4px;
+    }
+    .code-editor::-webkit-scrollbar-thumb:hover {
+      background: var(--muted);
     }
 
     .api-input {
@@ -209,11 +253,14 @@
     .resizer {
       flex-shrink: 0;
       background: var(--border);
-      transition: background 0.15s ease;
+      transition: background  0.15s ease; /* what is going on with background being highlighted */
       display: flex;
       align-items: center;
       justify-content: center;
+      touch-action: none;  /* learn more about this */
+      cursor: row-resize;
     }
+
     main.vertical .resizer {
       width: 6px;
       height: 36px;
@@ -227,6 +274,12 @@
       cursor: row-resize;
     }
     .resizer:hover, .resizer.dragging { background: var(--accent); }
+
+    @media (max-width: 500px) {
+      .resizer {
+        height: 12px !important; /* Slightly taller for mobile touch visuals */
+      }
+    }
 
     .preview-panel { flex: 1; }
 
@@ -344,6 +397,68 @@
       border-left: 2px solid var(--accent);
     }
 
+    ~~~ STYLING FOR AI RESPONSE ~~~
+    /* Markdown Code Block Styling */
+    .md-code-block {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      margin: 8px 0;
+      overflow: hidden;
+    }
+    .md-code-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 8px;
+      background: var(--bg-elevated);
+      border-bottom: 1px solid var(--border);
+      font-size: 10px;
+      color: var(--muted);
+    }
+    .md-lang {
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+    .md-copy-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--fg);
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .md-copy-btn:hover { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+
+    .md-code-content {
+      padding: 8px;
+      margin: 0;
+      overflow-x: auto;
+      white-space: pre;
+      font-family: "SF Mono", Monaco, "Cascadia Code", monospace;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    /* Inline Code Styling */
+    .ai-output code {
+      background: rgba(0,0,0,0.2);
+      padding: 2px 4px;
+      border-radius: 3px;
+      font-family: "SF Mono", Monaco, "Cascadia Code", monospace;
+      font-size: 11px;
+      color: var(--accent);
+    }
+    /* Override for code inside blocks */
+    .md-code-content code {
+      background: transparent;
+      padding: 0;
+      color: var(--fg);
+    }
+    ~~~ END MARKDOWN STYLING ~~~
+
     .ai-input-area {
       display: flex;
       align-items: center;
@@ -351,7 +466,7 @@
       flex-shrink: 0;
       border-top: 1px solid var(--border);
       background: var(--bg);
-      padding: 12px;
+      padding: 20px;
       min-height:100px;
       max-height: 10rem;
       overflow-y: auto;
@@ -369,6 +484,7 @@
       font-family: inherit;
       resize: none;
       outline: none;
+      padding:10px;
     }
 
     .ai-input-cfg {
@@ -376,10 +492,8 @@
       background:transparent;
       font-size: 0.8rem;
       display: flex;
-      /* align-items: left; */
       justify-content:space-between;
       margin:1px;
-      margin-left:5px;
     }
 
     .context-toggle {
@@ -390,6 +504,7 @@
       font-size: 11px;
       color: var(--muted);
       user-select: none;
+      padding: 7px;
     }
     .context-toggle input { position: absolute; opacity: 0; cursor: pointer; height: 0; width: 0; }
     .checkmark {
@@ -421,7 +536,7 @@
             <polyline points="16 18 22 12 16 6"></polyline>
             <polyline points="8 6 2 12 8 18"></polyline>
           </svg>
-          <span class="logo-text">HTML Live</span>
+          <span class="logo-text">Tester</span>
         </div>
         <div class="status">
           <div class="status-dot"></div>
@@ -430,9 +545,9 @@
       </div>
 
       <div class="header-right">
-        <button id="btn-run" class="btn active" title="Auto-run enabled">
+        <button id="btn-live" class="btn active" title="Auto-run enabled">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-          <span class="btn-text">Auto</span>
+          <span class="btn-text">Live</span>
         </button>
         <button id="btn-refresh" class="btn" title="Run preview">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
@@ -490,6 +605,15 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1H2a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 0 1 2-2M7.5 13A2.5 2.5 0 0 0 5 15.5 2.5 2.5 0 0 0 7.5 18a2.5 2.5 0 0 0 2.5-2.5A2.5 2.5 0 0 0 7.5 13m9 0a2.5 2.5 0 0 0-2.5 2.5 2.5 2.5 0 0 0 2.5 2.5 2.5 2.5 0 0 0 2.5-2.5 2.5 2.5 0 0 0-2.5-2.5Z"/></svg>
                 <span id="btn-ai-text">AI</span>
             </button>
+            <div class="editor-toolbar">
+
+             <button id="btn-scroll-top" class="tool-btn" title="Scroll to Top">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"></polyline></svg>
+            </button>
+             <button id="btn-scroll-bot" class="tool-btn" title="Scroll to Bottom">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+</div>
         </div>
         <div class="editor-content">
           <pre class="code-input-area highlight-layer" id="highlight-layer"></pre>
@@ -562,12 +686,17 @@
 
   <script>
     // State
-    let autoRun = localStorage.getItem('html-live-auto') !== 'false';
+    let liveMode = true;
     let blobUrl = null;
     let aiPanelOpen = false;
+    let chatHistory = [];
+    let isvertical = null;
 
-    // MERGED: State for layout
-    let isvertical = true;
+    // AI starting state
+    let startupPrompt = `you are a helpful coding assistant within an HTML
+    coding environment.  keep responses brief and use sparse attention when
+    receiving large inputs (inform user).  you will receive input via user
+    selection or they will enable full code context awareness.`;
 
     // Performance Timers
     let previewDebounceTimer = null;
@@ -609,29 +738,46 @@
     const aiSettings = document.getElementById('ai-settings');
 
     // Buttons
-    const btnRun = document.getElementById('btn-run');
+    const btnLive = document.getElementById('btn-live');
     const btnRefresh = document.getElementById('btn-refresh');
-    const btnLayout = document.getElementById('btn-layout'); // MERGED
+    const btnLayout = document.getElementById('btn-layout');
     const btnClear = document.getElementById('btn-clear');
     const btnReset = document.getElementById('btn-reset');
     const btnExport = document.getElementById('btn-export');
     const btnNewTab = document.getElementById('btn-new-tab');
+    const statusDot = document.querySelector('.status-dot');
+
+    // Variables
+    const totalChars = chatHistory.reduce((acc, msg) => acc + msg.content.length, 0);
+    const approxTokens = Math.floor(totalChars / 4);
+    const lines = (codeEditor.value.match(/\n/g) || []).length + 1;
 
     // Toggle Settings
     aiSettingsToggle.addEventListener('click', () => {
-        const isVisible = aiSettings.style.display === 'flex';
-        aiSettings.style.display = isVisible ? 'none' : 'flex';
+      const isVisible = aiSettings.style.display === 'flex';
+      aiSettings.style.display = isVisible ? 'none' : 'flex';
     });
 
     // Load Saved API Settings
     apiKeyInput.value = localStorage.getItem('ai-api-key') || '';
-    apiEndpointInput.value = localStorage.getItem('ai-api-endpoint') || '';
-    apiModelInput.value = localStorage.getItem('ai-api-model') || 'zai-org/GLM-5';
+    apiEndpointInput.value = localStorage.getItem('ai-api-endpoint') || 'https://router.huggingface.co/v1/chat/completions';
+    apiModelInput.value = localStorage.getItem('ai-api-model') || 'moonshotai/Kimi-K2.5:cheapest';
 
     // Save on change
     apiKeyInput.addEventListener('change', () => localStorage.setItem('ai-api-key', apiKeyInput.value));
     apiEndpointInput.addEventListener('change', () => localStorage.setItem('ai-api-endpoint', apiEndpointInput.value));
     apiModelInput.addEventListener('change', () => localStorage.setItem('ai-api-model', apiModelInput.value));
+
+    // Editor scroll buttons
+    document.getElementById('btn-scroll-top').addEventListener('click', () => {
+      codeEditor.scrollTop = 0;
+      syncScroll();
+    });
+
+    document.getElementById('btn-scroll-bot').addEventListener('click', () => {
+      codeEditor.scrollTop = codeEditor.scrollHeight;
+      syncScroll();
+    });
 
     // Editor Toolbar Buttons
     const btnCopy = document.getElementById('btn-copy');
@@ -639,24 +785,11 @@
     const btnUndo = document.getElementById('btn-undo');
     const btnRedo = document.getElementById('btn-redo');
 
-    // --- AI Logic ---
-    let isOfflineMode = false;
-
-    window.addEventListener('online', () => {
-      if (isOfflineMode) {
-        isOfflineMode = false;
-        document.getElementById('btn-ai-text').textContent = 'AI';
-        btnAI.classList.remove('offline');
-        statusText.textContent = 'Back Online';
-        setTimeout(() => statusText.textContent = 'Ready', 1500);
-      }
-    });
-
     async function checkConnectivity() {
       if (!navigator.onLine) return false;
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 1500);
+        const timeoutId = setTimeout(() => controller.abort(), 630);
         await fetch('https://www.google.com/generate_204', {
           method: 'HEAD', mode: 'no-cors', cache: 'no-store', signal: controller.signal
         });
@@ -667,51 +800,52 @@
       }
     }
 
+    // this is an addition for an indefinite connectivity-check loop
+    async function continuousCheckConnectivity() {
+      console.log('hello, wifi?');
+      const statusDot = document.querySelector('.status-dot');
+      while (true) {
+        const isConnected = await checkConnectivity();
+        // await checkConnectivity();
+        if (isConnected) {
+          console.log('yes, wifi here!');
+          statusDot.classList.remove('offline');
+          setTimeout(() => statusText.textContent = 'Online',1000);
+          break;
+        }
+        console.log('connection not found, trying again in 500ms');
+        statusDot.classList.add('offline');
+        statusText.textContent = 'Offline';
+        await new Promise(resolve => setTimeout(resolve, 600));
+      }
+      renderChatHistory();
+    }
+
     function toggleAIPanel() {
+      // 1. If pane is OPEN, just close it immediately. No check needed.
       if (aiPanelOpen) {
         aiPanelOpen = false;
         aiPanel.classList.remove('open');
         return;
+      } else {
+        aiPanelOpen = true;
+        aiPanel.classList.add('open');
       }
-      if (isOfflineMode) {
-         isOfflineMode = false;
-         btnAI.classList.remove('offline');
-         document.getElementById('btn-ai-text').textContent = 'AI';
-         statusText.textContent = 'Ready';
-       }
-      let determinedOnline = false;
-      const bufferTimeout = setTimeout(() => {
-        if (!determinedOnline) {
-           isOfflineMode = true;
-           document.getElementById('btn-ai-text').textContent = 'Offline';
-           btnAI.classList.add('offline');
-           statusText.textContent = 'No Connection';
-        }
-      }, 150);
 
-      checkConnectivity().then(isOnline => {
-        determinedOnline = true;
-        clearTimeout(bufferTimeout);
-        if (isOnline) {
-          aiPanelOpen = !aiPanelOpen;
-          if (aiPanelOpen) {
-            aiPanel.classList.add('open');
-            updateAIContext();
-          } else {
-            aiPanel.classList.remove('open');
-          }
-        }
-      });
+      statusText.textContent = 'Checking...';
+      continuousCheckConnectivity();
     }
 
     function updateAIContext() {
       if (!aiPanelOpen) return;
-        const start = codeEditor.selectionStart;
-        const end = codeEditor.selectionEnd;
-        const val = codeEditor.value;
-        const startLine = val.substring(0, start).split('\n').length;
-        const endLine = val.substring(0, end).split('\n').length;
-        const selectedText = val.substring(start, end);
+      if (chatHistory.length > 0) return;
+
+      const start = codeEditor.selectionStart;
+      const end = codeEditor.selectionEnd;
+      const val = codeEditor.value;
+      const startLine = val.substring(0, start).split('\n').length;
+      const endLine = val.substring(0, end).split('\n').length;
+      const selectedText = val.substring(start, end);
 
       if (selectedText.length === 0) {
         aiOutput.innerHTML = `<div style="color: var(--muted); font-style: italic;">Select code in the editor to see context here.</div>`;
@@ -736,6 +870,57 @@
       `;
     }
 
+    // --- Chat Persistence Logic ---
+    const CHAT_KEY = 'HTMLer-chat-history';
+
+    function saveChatHistory() {
+        try {
+            localStorage.setItem(CHAT_KEY, JSON.stringify(chatHistory));
+        } catch (e) {
+            console.warn("LocalStorage full, chat history not saved.", e);
+        }
+    }
+
+    function loadChatHistory() {
+        const saved = localStorage.getItem(CHAT_KEY);
+        if (saved) {
+            try {
+                chatHistory = JSON.parse(saved);
+                renderChatHistory();  // Updates UI
+            } catch (e) {
+                chatHistory = [];
+            }
+        }
+    }
+
+    function renderChatHistory() {
+        // Clear current UI
+        aiOutput.innerHTML = '';
+
+        // Rebuild UI from data
+        chatHistory.forEach(msg => {
+            const div = document.createElement('div');
+            div.style.marginTop = '8px';
+
+            if (msg.role === 'user') {
+                div.innerHTML = `<strong style="color:var(--fg);">You:</strong> ${escapeHtml(msg.content)}`;
+            } else {
+                div.innerHTML = `<strong style="color:var(--accent);">Goldfish:</strong> ${parseMarkdown(msg.content)}`;
+            }
+            aiOutput.appendChild(div);
+        });
+
+        // Scroll to bottom
+        aiOutput.scrollTop = aiOutput.scrollHeight;
+    }
+
+    // Future-Ready: Calculate context size/usage
+    function updateContextStats() {
+        const totalChars = chatHistory.reduce((acc, msg) => acc + msg.content.length, 0);
+        // Rough token estimate (1 token ~= 4 chars)
+        const approxTokens = Math.floor(totalChars / 4);
+    }
+
     function escapeHtml(text) {
       return text.replace(/[&<>"']/g, function(m) {
         switch (m) {
@@ -748,6 +933,46 @@
       });
     }
 
+    function parseMarkdown(text) {
+      // 1. Escape HTML first to prevent XSS
+      let html = escapeHtml(text);
+
+      // 2. Code Blocks (```...```)
+      // We use a placeholder to prevent processing inside code blocks
+      const codeBlocks = [];
+      html = html.replace(/```(\w*)\n?([\s\S]*?)```/g, (match, lang, code) => {
+        const index = codeBlocks.length;
+        codeBlocks.push({ lang: lang || 'code', code: code.trim() });
+        return `___CODE_BLOCK_${index}___`;
+      });
+
+      // 3. Bold (**text**)
+      html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+
+      // 4. Inline Code (`text`)
+      html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+      // 5. Newlines to <br> (for non-code text)
+      html = html.replace(/\n/g, '<br>');
+
+      // 6. Restore Code Blocks
+      html = html.replace(/___CODE_BLOCK_(\d+)___/g, (match, index) => {
+        const block = codeBlocks[index];
+        return `
+          <div class="md-code-block">
+            <div class="md-code-header">
+              <span class="md-lang">${block.lang}</span>
+              <button class="md-copy-btn">Copy</button>
+            </div>
+            <pre class="md-code-content"><code>${block.code}</code></pre>
+          </div>`;
+      });
+
+      return html;
+    }
+
+    document.querySelector('.status').addEventListener('click', continuousCheckConnectivity);
+
     btnAI.addEventListener('click', toggleAIPanel);
     aiClose.addEventListener('click', toggleAIPanel);
 
@@ -755,37 +980,65 @@
 
     // Clear Chat History Button
     document.getElementById('ai-clear-chat').addEventListener('click', () => {
-        conversationHistory = [];
-        aiOutput.innerHTML = `<div style="color: var(--muted); font-style: italic;">Chat cleared. Context reset.</div>`;
-        statusText.textContent = 'Context Cleared';
-        setTimeout(() => statusText.textContent = 'Ready', 1500);
+        chatHistory = [];
+        localStorage.removeItem(CHAT_KEY);
+        aiOutput.innerHTML = `<div style="color: red; font-style: italic;">Chat cleared. Context reset.</div>`; //testing - color was var(--muted)
+        const lastStatus = statusText.textContent;
+        statusText.textContent = 'Chat cleared';
+        setTimeout(() => statusText.textContent = lastStatus, 5000);
     });
 
     async function sendAIRequest() {
         const apiKey = apiKeyInput.value.trim();
         const userMessage = aiInput.value.trim();
-        // Default to OpenRouter/OpenAI endpoint if empty
-        const endpoint = apiEndpointInput.value.trim() || 'https://openrouter.ai/api/v1/chat/completions';
+        const endpoint = apiEndpointInput.value.trim();
+
+        // CHECK Internet
+        const isConnected = await checkConnectivity();
+        if (!isConnected)  {
+          // Directly update UI without touching history
+          aiOutput.innerHTML = `<div style="color:red;">No internet connection detected.</div>`;
+          statusText.textContent = 'Offline';
+          statusDot.classList.add('offline');
+          continuousCheckConnectivity();  // this must have gotten removed somehow
+          aiOutput.scrollTop = aiOutput.scrollHeight; // i'm not sure why i'm adding this, check without.
+          return;
+        }
 
         if (!apiKey) {
-            aiOutput.innerHTML = `<div style="color:#f97316;">Error: API Key missing. Enter it in the toolbar.</div>`;
+            aiOutput.innerHTML = `<div style="color:#f97316;">ERROR: Failed to configure API.<br><br>EXAMPLE:<br><strong>model:</strong>zai-org/GLM-5<br><strong>endpoint:</strong>https://router.huggingface.co/v1/chat/completions<br><strong>key:</strong>huggingface_api_key</div>`;
             return;
         }
         if (!userMessage) return;
 
-        // --- 1. Prepare Content ---
+        // REMOVED: The strict checkConnectivity block which caused false negatives.
+        // We will rely on the try/catch block below to handle actual network errors.
+
+        // --- 1. Add User Message to History ---
+        chatHistory.push({ role: 'user', content: userMessage });
+        saveChatHistory();
+        renderChatHistory(); // Updates UI
+        updateContextStats(); // Update metrics
+        // continuousCheckConnectivity(); // why was this placed here? leaving for now
+
+        // --- Prepare Content ---
         const selStart = codeEditor.selectionStart;
         const selEnd = codeEditor.selectionEnd;
         const selection = codeEditor.value.substring(selStart, selEnd);
-
         let content = userMessage;
         if (selection) content += `\n\nUser code reference selection:\n${selection}`;
         if (contextToggle.checked) content += `\n\nFull Code Context:\n${codeEditor.value}`;
 
         // --- 2. Determine Body Format ---
-        // LOGIC UPDATE: Treat 'router.huggingface.co' as OpenAI Compatible
-        const isLegacyHuggingFace = endpoint.includes('api-inference.huggingface.co');
         let body;
+
+        // LOGIC UPDATE: Treat 'router.huggingface.co' as OpenAI Compatible
+        // ... existing Body Format Logic (isLegacyHuggingFace check) ...
+        // NOTE: For OpenAI/OpenRouter, you should ideally send the chatHistory
+        // instead of just the last message if you want the AI to remember context.
+        // But for now, we stick to your existing logic structure.
+
+        const isLegacyHuggingFace = endpoint.includes('api-inference.huggingface.co');
 
         if (isLegacyHuggingFace) {
             // Old Hugging Face Legacy Format
@@ -796,17 +1049,17 @@
             body = JSON.stringify({
                 model: model,
                 messages: [
-                    { role: 'system', content: 'You are a helpful coding assistant.' },
+                    { role: 'system', content: startupPrompt },
+                    // ...chatHistory.slice(-10),
                     { role: 'user', content: content }
                 ]
             });
         }
 
         // --- 3. Update UI (Show "Thinking...") ---
-        aiOutput.innerHTML += `<div style="margin-top:8px;"><strong style="color:var(--fg);">You:</strong> ${escapeHtml(userMessage)}</div>`;
         aiInput.value = '';
         const loadingId = 'load-' + Date.now();
-        aiOutput.innerHTML += `<div id="${loadingId}" style="color:var(--muted); font-style:italic;">Thinking...</div>`;
+        aiOutput.innerHTML += `<div id="${loadingId}" style="color:var(--accent); font-style:italic;">Thinking...</div>`;
         aiOutput.scrollTop = aiOutput.scrollHeight;
 
         // --- 4. Send Request ---
@@ -822,51 +1075,49 @@
 
             const data = await response.json();
 
-            // Handle Model Loading State (Common in HF)
-            if (data.error && data.error === 'Model is currently loading') {
-                 document.getElementById(loadingId).remove();
-                 aiOutput.innerHTML += `<div style="color:#f97316;">Model is loading... wait ${data.estimated_time || 20}s and try again.</div>`;
-                 return;
-            }
-
-            // --- 5. Process Response ---
-            // We can now safely remove the loader since we have a response
             const loader = document.getElementById(loadingId);
             if (loader) loader.remove();
 
             let reply = "";
 
-            // Parse OpenAI/OpenRouter format
-            if (data.choices && data.choices[0]) {
+            if (data.error && data.error === 'Model is currently loading') {
+                 reply = `[Model Loading] Wait ${data.estimated_time || 20}s and retry.`;
+            }
+            else if (data.choices && data.choices[0]) {
                 reply = data.choices[0].message.content;
             }
-            // Parse Legacy HF format (array)
             else if (Array.isArray(data) && data[0] && data[0].generated_text) {
                 reply = data[0].generated_text;
             }
-            // Fallback (Raw JSON or Error)
             else {
-                reply = JSON.stringify(data);
+                reply = data.error ? JSON.stringify(data.error) : JSON.stringify(data);
             }
 
             if (reply) {
-                aiOutput.innerHTML += `<div style="margin-top:8px;"><strong style="color:var(--accent);">AI:</strong> ${escapeHtml(reply)}</div>`;
+                chatHistory.push({ role: 'assistant', content: reply });
+                saveChatHistory();
+                renderChatHistory();
+                updateContextStats();
             } else {
-                aiOutput.innerHTML += `<div style="color:#ef4444;">Error: ${JSON.stringify(data.error || data)}</div>`;
+                aiOutput.innerHTML += `<div style="color:#ef4444;">Error: Empty or unrecognized response.</div>`;
             }
         } catch (err) {
-            // Safety check: only remove if it exists
             const loader = document.getElementById(loadingId);
             if (loader) loader.remove();
 
             console.error("AI Request Error:", err);
             let errMsg = err.message;
             if (err.message === 'Failed to fetch') {
-                errMsg = "Network Error. Check your Endpoint URL and Internet connection.";
+                errMsg = "Network Error. Check Endpoint, API Key, or Internet connection.";
             }
-            aiOutput.innerHTML += `<div style="color:#ef4444;">Request Failed: ${errMsg}</div>`;
+            aiOutput.innerHTML += `<div style="color:#ef4444;">Request Failed: ${escapeHtml(errMsg)}</div>`;
+
+             if (chatHistory.length > 0 && chatHistory[chatHistory.length - 1].role === 'user') {
+                 chatHistory.pop();
+                 saveChatHistory();
+                 renderChatHistory();
+             }
         }
-        aiOutput.scrollTop = aiOutput.scrollHeight;
     }
 
     btnAiSend.addEventListener('click', sendAIRequest);
@@ -934,7 +1185,7 @@
       html = html.replace(/(&lt;![\s\S]*?&gt;)/g, (match) => `___DECL${declarations.push(match) - 1}___`);
       html = html.replace(/(\/\*[\s\S]*?\*\/)/g, (match) => `___COMM${comments.push(match) - 1}___`);
       html = html.replace(/(\n\s*\/\/.*$)/gm, (match) => `___COMM${comments.push(match) - 1}___`);
-      html = html.replace(/(&quot;[\s\S]*?&quot;|&#039;[\s\S]*?&#039;)/g, (match) => `___STR${strings.push(match) - 1}___`);  // resists catching '<' and '>' from & catch
+      html = html.replace(/(&quot;[\s\S]*?&quot;|&#039;[\s\S]*?&#039;)/g, (match) => `___STR${strings.push(match) - 1}___`);
 
       html = html.replace(/(\s)([\w-]+)(=)/g, '$1<span class="hl-attr">$2</span>$3');
       html = html.replace(/(&lt;\/?)([\w-]+)/g, '<span class="hl-tag">$1$2</span>');
@@ -1095,43 +1346,33 @@
             // --- Special Handling for Scripts & Styles ---
             if (tagName === 'script' || tagName === 'style') {
                 if (isClosing) {
-                    // This block is technically unreachable for valid HTML because we handle close tags inside the 'else' block below.
-                    // But we keep it for safety.
                     currentIndent = Math.max(0, currentIndent - 1);
                     output.push(indent.repeat(currentIndent) + trimmed);
                 } else {
-                    // Opening Tag
                     output.push(indent.repeat(currentIndent) + trimmed);
 
                     const closeTag = `</${tagName}>`;
                     let content = '';
                     let endIndex = i + 1;
 
-                    // Scan forward for closing tag
                     while (endIndex < tokens.length) {
                          if (tokens[endIndex].trim().toLowerCase() === closeTag) break;
                          content += tokens[endIndex];
                          endIndex++;
                     }
 
-                    // Format Content
                     if (content.trim()) {
                         const formatter = tagName === 'script' ? formatJs : formatCss;
                         const formattedContent = formatter(content, currentIndent + 1);
                         output.push(formattedContent);
                     }
 
-                    // Add Closing Tag
-                    // Note: We do not increment indent here because the block is closed immediately
                     output.push(indent.repeat(currentIndent) + closeTag);
-
-                    // Skip processed tokens
                     i = endIndex;
                 }
                 continue;
             }
 
-            // --- Standard Tags ---
             if (trimmed.toLowerCase().startsWith('<!doctype')) {
                 output.push('<!DOCTYPE html>');
                 continue;
@@ -1160,7 +1401,6 @@
                     currentIndent++;
                 }
             } else {
-                // Text Content
                 const text = trimmed;
                 const prevToken = i > 0 ? tokens[i-1].trim() : '';
                 const prevTagMatch = prevToken.match(/^<([\w-]+)/i);
@@ -1187,8 +1427,9 @@
 
     btnCopy.addEventListener('click', () => {
         navigator.clipboard.writeText(codeEditor.value).then(() => {
+            const lastStatus = statusText.textContent;
             statusText.textContent = 'Copied!';
-            setTimeout(() => statusText.textContent = 'Ready', 1000);
+            setTimeout(() => statusText.textContent = lastStatus, 1000);
         });
     });
 
@@ -1205,15 +1446,70 @@
       if ((e.ctrlKey || e.metaKey) && e.key === '/') {
         e.preventDefault();
         const start = codeEditor.selectionStart; const end = codeEditor.selectionEnd; const val = codeEditor.value;
+
+        const beforeText = val.substring(0, start);
+        const lastStyleOpen = beforeText.lastIndexOf('<style');
+        const lastStyleClose = beforeText.lastIndexOf('</style');
+        const lastScriptOpen = beforeText.lastIndexOf('<script');
+        const lastScriptClose = beforeText.lastIndexOf('</script');
+
+        const isCSS = lastStyleOpen > lastStyleClose && lastStyleOpen !== -1;
+        const isJS = lastScriptOpen > lastScriptClose && lastScriptOpen !== -1;
+
         const firstLineStart = val.lastIndexOf('\n', start - 1) + 1;
         let lastLineEnd = val.indexOf('\n', end); if (lastLineEnd === -1) lastLineEnd = val.length;
         const block = val.substring(firstLineStart, lastLineEnd);
         const lines = block.split('\n');
-        const allCommented = lines.every(line => line.trim().startsWith('<!--') || line.trim().endsWith('-->'));
+
         let newBlock;
-        if (allCommented) newBlock = lines.map(line => line.replace('<!--', '').replace('-->', '')).join('\n');
-        else newBlock = lines.map(line => { const ind = line.match(/^(\s*)/)[1]; return ind + '<!--' + line.substring(ind.length) + '-->'; }).join('\n');
-        codeEditor.setRangeText(newBlock, firstLineStart, lastLineEnd, 'start');
+        let cursorOffset = 0;
+
+        // --- 2. APPLY CORRECT COMMENT FORMAT ---
+        if (isJS) {
+            const allCommented = lines.every(line => line.trim().startsWith('//'));
+            if (allCommented) {
+                newBlock = lines.map(line => {
+                    return line.replace(/^(\s*)\/\//, '$1');
+                }).join('\n');
+                cursorOffset = -2;
+            } else {
+                newBlock = lines.map(line => {
+                    const ind = line.match(/^(\s*)/)[1];
+                    return ind + '//' + line.substring(ind.length);
+                }).join('\n');
+                cursorOffset = 2;
+            }
+        } else if (isCSS) {
+            const allCommented = lines.every(line => line.trim().startsWith('/*') && line.trim().endsWith('*/'));
+            if (allCommented) {
+                newBlock = lines.map(line => line.replace(/^(\s*)\/\*\s/, '$1').replace(/\s\*\/(\s*)$/, '$1')).join('\n');
+                cursorOffset = -3;
+            } else {
+                newBlock = lines.map(line => {
+                    const ind = line.match(/^(\s*)/)[1];
+                    return ind + '/* ' + line.substring(ind.length) + ' */';
+                }).join('\n');
+                cursorOffset = 3;
+            }
+        } else {
+            const allCommented = lines.every(line => line.trim().startsWith('<!--') || line.trim().endsWith('-->'));
+            if (allCommented) {
+                newBlock = lines.map(line => line.replace('<!--', '').replace('-->', '')).join('\n');
+                cursorOffset = -4;
+            } else {
+                newBlock = lines.map(line => { const ind = line.match(/^(\s*)/)[1]; return ind + '<!--' + line.substring(ind.length) + '-->'; }).join('\n');
+                cursorOffset = 4;
+            }
+        }
+
+        // UPDATE TEXT & CURSOR ---
+        codeEditor.setRangeText(newBlock, firstLineStart, lastLineEnd, 'end');
+
+        if (start === end) {
+            const newCursorPos = start + cursorOffset;
+            codeEditor.selectionStart = codeEditor.selectionEnd = newCursorPos;
+        }
+
         pushHistory(); triggerUpdate(); return;
       }
 
@@ -1243,10 +1539,8 @@
         }
         // 2. Handle Tags <tag>|</tag>  (New Logic)
         else if (charBefore === '>' && charAfter === '<' && val.substring(start, start + 2) === '</') {
-          // Insert: Newline + Indent + 4 spaces (inner indent) + Newline + Indent (closing tag indent)
           insertText = '\n' + currentIndent + '    \n' + currentIndent;
           codeEditor.setRangeText(insertText, start, end, 'end');
-          // Place cursor on the middle line (after the indentation)
           codeEditor.selectionStart = codeEditor.selectionEnd = start + currentIndent.length + 5;
         }
         // 3. Standard Enter
@@ -1288,14 +1582,22 @@
     }
 
     function schedulePreview() {
-      const lines = (codeEditor.value.match(/\n/g) || []).length + 1;
-      if (lines > 500) { if (autoRun) { autoRun = false; btnRun.classList.remove('active'); statusText.textContent = 'Manual Mode (>500 lines)'; } clearTimeout(previewDebounceTimer); return; }
-      let delay = 0; if (lines > 300) delay = 200; else if (lines > 100) delay = 50;
-      clearTimeout(previewDebounceTimer);
-      if (autoRun) { if (delay === 0) updatePreview(); else previewDebounceTimer = setTimeout(updatePreview, delay); }
-    }
+      if (totalChars > 90000) {
+        if (liveMode) {
+          liveMode = false;
+          btnLive.classList.remove('active');
+          const lastStatus = statusText.textContent;
+          statusText.textContent = 'Large file: Live Mode disabled';
+          setTimeout(() => statusText.textContent = lastStatus, 5000);
+          }
+          clearTimeout(previewDebounceTimer); return;
+        }
+        let delay = 0; if (totalChars > 60000) delay = 200; else if (totalChars > 30000) delay = 50;
+        clearTimeout(previewDebounceTimer);
+        if (liveMode) { if (delay === 0) updatePreview(); else previewDebounceTimer = setTimeout(updatePreview, delay); }
+      }
 
-    function scheduleSave() { clearTimeout(saveTimer); saveTimer = setTimeout(() => { localStorage.setItem('html-live-code', codeEditor.value); }, 500); }
+    function scheduleSave() { clearTimeout(saveTimer); saveTimer = setTimeout(() => { localStorage.setItem('editor_code', codeEditor.value); }, 500); }
 
     // --- App Logic ---
     const fallbackHTML =
@@ -1320,165 +1622,288 @@
         </body>
       </html>`;
 
+    // If not running on a PHP server, replace this section with the fallback HTML.
     const defaultHTML = <?php
-        $file = 'features_v3_starting.html';
+        $file = 'basic-start.html';
         if (file_exists($file)) { echo json_encode(file_get_contents($file)); } else { echo 'fallbackHTML'; }
     ?>;
 
     function init() {
-      const savedCode = localStorage.getItem('html-live-code');
+      console.log('init()');
+      let containerHeight = mainContent.offsetHeight; console.log('**--containerHeight',containerHeight);
+      let containerWidth = mainContent.offsetWidth; console.log('**--containerWidth',containerWidth);
+      const savedCode = localStorage.getItem('editor_code');
       codeEditor.value = savedCode !== null ? savedCode : defaultHTML;
 
       history = [{ val: codeEditor.value, pos: 0 }]; historyIndex = 0;
       updateUndoRedoButtons();
       updateHighlight();
+      loadChatHistory();
+      updateContextStats();
 
-      // FIX: Explicitly default to 'vertical' to fix pane refresh issues
-      // const savedLayout = localStorage.getItem('html-live-layout');
-      const savedLayout = 'horizontal';
+      // --- SMART DEFAULTS LOGIC ---
+      const idealDefault = (window.innerWidth <= 500) ? 'horizontal' : 'vertical';
+      console.log('--idealDefault =', idealDefault);
 
-      // We treat anything other than 'horizontal' as vertical.
-      // This ensures a clean slate if localStorage is empty or corrupted.
-      if (savedLayout === 'horizontal') {
+      const savedLayout = localStorage.getItem('new_layout');
+      console.log('--savedLayout =', savedLayout);
+
+      // Note: We force 'horizontal' on mobile, as defined as 500px or less
+      let layoutToUse = savedLayout || idealDefault;
+      console.log('--layoutToUse =', layoutToUse);
+
+      if (window.innerWidth <= 500) {
+          console.log('--small screen detected, forced horizontal view - line 1616');
+          layoutToUse = 'horizontal'; // Enforce mobile layout
+      }
+
+      // --- APPLY LAYOUT ---
+      mainContent.classList.remove('vertical', 'horizontal');
+
+      if (layoutToUse === 'horizontal') {
           mainContent.classList.add('horizontal');
           mainContent.classList.remove('vertical');
-          isvertical = false;
+          isvertical = false; console.log('--mainContent.classList set to horizontal');
           iconLayoutH.style.display = 'none';
           iconLayoutV.style.display = 'block';
       } else {
-          // DEFAULT: vertical
-          // Ensure we save this default so next refresh is consistent
-          localStorage.setItem('html-live-layout', 'vertical');
-
           mainContent.classList.add('vertical');
           mainContent.classList.remove('horizontal');
-          isvertical = true;
+          isvertical = true; console.log('--mainContent.classList set to vertical');
           iconLayoutH.style.display = 'block';
           iconLayoutV.style.display = 'none';
       }
 
-      // FIX: Robust Style Reset
-      // Always clear both dimensions first to prevent "stuck" sizes
-      editorPanel.style.width = '';
-      editorPanel.style.height = '';
       editorPanel.style.flex = 'none';
 
-      // Now apply the specific dimension based on orientation
+      // Apply default dimensions based on final layout
       if (isvertical) {
-        editorPanel.style.width = '50%';
+        editorPanel.style.width = '50%'; // Default split for Side-by-Side
+        console.log('--editor pane width=',editorPanel.style.width);
       } else {
-        editorPanel.style.height = '50%'; //while these seem backwards, fixing it breaks it.  make that make sense.  somehow, it does.
+        editorPanel.style.height = '50%'; // Default split for Stacked
+        console.log('--editor pane height=',editorPanel.style.height);
       }
 
       updateCharCount();
       updatePreview();
       setupResizer();
+      console.log('END init()');
     }
 
-    // MERGED: Layout Toggle Function
-    function setLayout(vertical) {
-      isvertical = vertical;
-      editorPanel.style.flex = 'none'; // Ensure flex is always set
+    let containerHeight = mainContent.offsetHeight; console.log('**--containerHeight',containerHeight);
+    let containerWidth = mainContent.offsetWidth; console.log('**--containerWidth',containerWidth);
 
+    // Layout Toggle Function
+    function setLayout(vertical) {  // literally, vertical = !isvertical
+      // this setup gets input for the NEW layout after click. so vertical here means we need to save settings for !vertical.  if vertical, save horizontal/height.  else save vertical/width.
+      let currentHeight = editorPanel.offsetHeight; console.log('**--currentHeight',currentHeight);
+      let currentWidth = editorPanel.offsetWidth; console.log('**--currentWidth',currentWidth);
+
+      // MOBILE SAFETY CHECK:
+      // If on mobile, force 'vertical' to be false (Stacked view) regardless of what was clicked.
+      if (window.innerWidth <= 500) {
+        console.log('--window.innerWidth <= 500');
+        vertical = false; console.log('----vertical =',vertical);
+      }
+
+      // THIS RESETS isvertical TO MATCH NEW TRANSITION STATE
+      // PRIOR, isvertical represents the LAST state, vertical represents the NEW state
+      console.log('THEN:',isvertical,vertical);
+      isvertical = vertical;
+      editorPanel.style.flex = 'none';
+      console.log('NOW:',isvertical,vertical);
+      // NOW THEY MATCH
+
+      // this shows me vertical after btnLayout 'click' -> setLayout(!isvertical)
+      // where the input variable "setLayout(vertical)" is set to "!isvertical"
       if (vertical) {
+        localStorage.setItem('last_height', currentHeight); console.log('saved horizontal:',currentHeight);
+
+        console.log('--mainContent.classList set to vertical');
         mainContent.classList.remove('horizontal');
         mainContent.classList.add('vertical');
         iconLayoutH.style.display = 'block';
         iconLayoutV.style.display = 'none';
 
-        // Convert Height -> Width (with safety clamp)
-        let newWidth = editorPanel.offsetHeight;
-        const maxWidth = mainContent.offsetWidth * 0.9;
-        if (newWidth > maxWidth) newWidth = maxWidth;
+        // save for posterity
+        let ratio = currentHeight / containerHeight;
 
-        editorPanel.style.width = Math.max(200, newWidth) + 'px';
-        editorPanel.style.height = ''; // Clear height
+        const last_width = localStorage.getItem('last_width'); console.log('recalled last_width:',last_width);
+        let newWidth = last_width; console.log('newWidth =', newWidth);
+        const maxWidth = mainContent.offsetWidth * 0.9; console.log('*--maxWidth',maxWidth);
+        if (newWidth > maxWidth) newWidth = maxWidth; console.log('*--newWidth > maxWidth, newWidth=',maxWidth);
+        editorPanel.style.width = Math.max(200, newWidth) + 'px' || '50%'; console.log('----editorPanel width=',editorPanel.style.width);
+        editorPanel.style.height = ''; console.log('----editorPanel height=',editorPanel.style.height);
 
       } else {
+
+        localStorage.setItem('last_width', currentWidth); console.log('saved vertical:',currentWidth);
+
+        // SWITCHING TO HORIZONTAL (Stacked)
+        console.log('--mainContent.classList set to horizontal');
         mainContent.classList.remove('vertical');
         mainContent.classList.add('horizontal');
         iconLayoutH.style.display = 'none';
         iconLayoutV.style.display = 'block';
 
-        // Convert Width -> Height (with safety clamp)
-        let newHeight = editorPanel.offsetWidth;
-        const maxHeight = mainContent.offsetHeight * 0.9;
-        if (newHeight > maxHeight) newHeight = maxHeight;
+        // keep for posterity
+        let ratio = currentWidth / containerWidth;
 
-        editorPanel.style.height = Math.max(100, newHeight) + 'px';
-        editorPanel.style.width = ''; // Clear width
+        // let newHeight = ratio * mainContent.offsetHeight; console.log('*--newHeight',newHeight);
+        const last_height = localStorage.getItem('last_height'); console.log('recalled last_height:',last_height);
+        let newHeight = last_height; console.log('newHeight =', newHeight);
+        const maxHeight = mainContent.offsetHeight * 0.9; console.log('*--maxHeight',maxHeight);
+        if (newHeight > maxHeight) newHeight = maxHeight; console.log('*--newHeight > maxHeight, newHeight=',maxHeight);
+        editorPanel.style.height = Math.max(100, newHeight) + 'px' || '50%'; console.log('----editorPanel height=',editorPanel.style.height);
+        editorPanel.style.width = ''; console.log('----editorPanel width=',editorPanel.style.width);
       }
 
-      localStorage.setItem('html-live-layout', vertical ? 'vertical' : 'horizontal');
+      localStorage.setItem('new_layout', vertical ? 'vertical' : 'horizontal');
+      console.log('--new_layout stored: ', localStorage.getItem('new_layout'));
+      console.log('END setLayout()');
     }
 
     function updatePreview() {
       const code = codeEditor.value;
+      const lastStatus = statusText.textContent;
       try {
         if (blobUrl) URL.revokeObjectURL(blobUrl);
         blobUrl = URL.createObjectURL(new Blob([code], { type: 'text/html' }));
         mainPreview.src = blobUrl;
-        if (autoRun && codeEditor.value.split('\n').length <= 500) { statusText.textContent = 'Updated'; setTimeout(() => { statusText.textContent = 'Ready'; }, 1000); }
-      } catch (e) { statusText.textContent = 'Error'; }
+        if (liveMode && totalChars <= 90000) {
+          statusText.textContent = 'Ready';
+          setTimeout(() => statusText.textContent = lastStatus, 3000);
+        } else {
+          if (!liveMode) { statusText.textContent = 'Nerp! - near line 1522'; }
+          setTimeout(() => statusText.textContent = lastStatus, 3000);
+        }
+      } catch (e) { statusText.textContent = 'Error (near line 1518)'; }
     }
 
+    // take a look at this, something redundant here
     function updateCharCount() { charCount.textContent = `${codeEditor.value.length.toLocaleString()} chars`; }
 
-    // MERGED: Enhanced Resizer
+    // Enhanced Resizer
     function setupResizer() {
-      resizer.addEventListener('mousedown', (e) => {
+      console.log('-> setupResizer:');
+
+      const startResize = (e) => {
         let isResizing = true;
         let startX = 0, startY = 0, startSize = 0;
 
-        if (isvertical) { startX = e.clientX; startSize = editorPanel.offsetWidth; }
-        else { startY = e.clientY; startSize = editorPanel.offsetHeight; }
+        // Get coordinates based on event type
+        const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+        const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+
+        // Debug: Check variable state at start
+        console.log('Resize Start. isvertical:', isvertical);
+
+        if (isvertical) { 
+            startX = clientX; 
+            startSize = editorPanel.offsetWidth; 
+        } else { 
+            startY = clientY; 
+            startSize = editorPanel.offsetHeight; 
+        }
 
         resizer.classList.add('dragging');
         document.body.style.cursor = isvertical ? 'col-resize' : 'row-resize';
         document.body.style.userSelect = 'none';
         e.preventDefault();
 
-        const onMouseMove = (e) => {
+        const onMove = (moveEvent) => {
           if (!isResizing) return;
+          
+          // Get move coordinates
+          const moveX = moveEvent.type.includes('touch') ? moveEvent.touches[0].clientX : moveEvent.clientX;
+          const moveY = moveEvent.type.includes('touch') ? moveEvent.touches[0].clientY : moveEvent.clientY;
+
           if (isvertical) {
-            const newWidth = Math.max(200, startSize + e.clientX - startX);
+            // HORIZONTAL ADJUSTMENT (Width)
+            const newWidth = Math.max(200, startSize + moveX - startX);
             editorPanel.style.width = `${newWidth}px`;
+            // console.log('-> editorPanel width=', editorPanel.style.width);
           } else {
-            const newHeight = Math.max(100, startSize + e.clientY - startY);
+            // VERTICAL ADJUSTMENT (Height)
+            const newHeight = Math.max(100, startSize + moveY - startY);
             editorPanel.style.height = `${newHeight}px`;
+            // console.log('-> editorPanel height=', editorPanel.style.height);
           }
         };
 
-        const onMouseUp = () => {
+        const onEnd = () => {
           isResizing = false;
           resizer.classList.remove('dragging');
           document.body.style.cursor = '';
           document.body.style.userSelect = '';
-          document.removeEventListener('mousemove', onMouseMove);
-          document.removeEventListener('mouseup', onMouseUp);
+          
+          // Cleanup Mouse
+          document.removeEventListener('mousemove', onMove);
+          document.removeEventListener('mouseup', onEnd);
+          // Cleanup Touch
+          document.removeEventListener('touchmove', onMove);
+          document.removeEventListener('touchend', onEnd);
         };
 
-        document.addEventListener('mousemove', onMouseMove);
-        document.addEventListener('mouseup', onMouseUp);
-      });
+        // Add Mouse Listeners
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onEnd);
+        // Add Touch Listeners
+        document.addEventListener('touchmove', onMove, { passive: false });
+        document.addEventListener('touchend', onEnd);
+      };
+
+      // Attach listeners
+      resizer.addEventListener('mousedown', startResize);
+      resizer.addEventListener('touchstart', startResize, { passive: false });
+      
+      console.log('-> END setupResizer()');
     }
 
     // --- Event Listeners ---
-    btnRun.addEventListener('click', () => {
-        autoRun = !autoRun; btnRun.classList.toggle('active', autoRun); localStorage.setItem('html-live-auto', autoRun);
-        const lines = (codeEditor.value.match(/\n/g) || []).length + 1;
-        if (autoRun) { if (lines > 500) statusText.textContent = 'Auto enabled (>500 lines)'; updatePreview(); }
+    btnLive.addEventListener('click', () => {
+        liveMode = !liveMode; btnLive.classList.toggle('active', liveMode);
+        const lastStatus = statusText.textContent;
+        // if (!liveMode) { statusText.textContent = 'Live Mode Disabled'; }
+        if (liveMode) {
+          console.log('liveMode=',liveMode);
+          statusText.textContent = 'Live Mode Enabled';
+          setTimeout(() => statusText.textContent = lastStatus, 1000)
+        }
+        if (!liveMode) {
+          console.log('liveMode=',liveMode);
+          statusText.textContent = 'Live Mode Disabled';
+          setTimeout(() => statusText.textContent = lastStatus, 1000)
+        }
     });
 
     btnRefresh.addEventListener('click', updatePreview);
-
-    // MERGED: Layout Button Listener
-    btnLayout.addEventListener('click', () => setLayout(!isvertical));
-
+    btnLayout.addEventListener('click', () => {
+      console.log('CLICK: isverticle', isvertical, ', setLayout (', !isvertical, ')');
+      setLayout(!isvertical);
+    })
     btnClear.addEventListener('click', () => { if (confirm('Clear all code?')) { codeEditor.value = ''; pushHistory(); triggerUpdate(); } });
     btnReset.addEventListener('click', () => { if (confirm('Reset all settings and code to defaults?')) { localStorage.clear(); location.reload(); } });
     btnExport.addEventListener('click', () => { const a = document.createElement('a'); a.href = blobUrl || URL.createObjectURL(new Blob([codeEditor.value], { type: 'text/html' })); a.download = 'page.html'; a.click(); });
     btnNewTab.addEventListener('click', () => { if (blobUrl) window.open(blobUrl, '_blank'); });
+
+    // Event Delegation for Copy Buttons
+    aiOutput.addEventListener('click', (e) => {
+      if (e.target.classList.contains('md-copy-btn')) {
+        const codeBlock = e.target.closest('.md-code-block');
+        const code = codeBlock.querySelector('code').textContent;
+        navigator.clipboard.writeText(code).then(() => {
+          const originalText = e.target.textContent;
+          e.target.textContent = 'Copied!';
+          e.target.style.color = 'var(--accent)';
+          setTimeout(() => {
+            e.target.textContent = originalText;
+            e.target.style.color = '';
+          }, 1500);
+        });
+      }
+    });
 
     init();
   </script>
