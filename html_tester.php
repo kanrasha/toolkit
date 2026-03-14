@@ -1000,8 +1000,8 @@
           aiOutput.innerHTML = `<div style="color:red;">No internet connection detected.</div>`;
           statusText.textContent = 'Offline';
           statusDot.classList.add('offline');
-          continuousCheckConnectivity();  // this must have gotten removed somehow
           aiOutput.scrollTop = aiOutput.scrollHeight; // i'm not sure why i'm adding this, check without.
+          continuousCheckConnectivity();  // this must have gotten removed somehow
           return;
         }
 
@@ -1019,7 +1019,7 @@
         saveChatHistory();
         renderChatHistory(); // Updates UI
         updateContextStats(); // Update metrics
-        // continuousCheckConnectivity(); // why was this placed here? leaving for now
+        continuousCheckConnectivity(); // why was this placed here? leaving for now
 
         // --- Prepare Content ---
         const selStart = codeEditor.selectionStart;
@@ -1873,3 +1873,4 @@
   </script>
 </body>
 </html>
+a
