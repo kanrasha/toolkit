@@ -249,28 +249,27 @@
     .hl-punctuation { color: #808080; }
     .hl-css-prop { color: #dcdcaa; }
 
+    /* RESTORED: Dynamic Resizer Logic */
     .resizer {
       flex-shrink: 0;
       background: var(--border);
-      transition: transparent  0.15s ease; /* what is going on with background being highlighted */
+      transition: background  0.15s ease; /* what is going on with background being highlighted */
       display: flex;
       align-items: center;
       justify-content: center;
       touch-action: none;  /* learn more about this */
       cursor: row-resize;
-      outline: 1px solid var(--muted);
     }
 
     main.vertical .resizer {
-      width: 8px;
+      width: 6px;
       height: 36px;
       align-self: flex-start;
       cursor: col-resize;
       border-radius: 0 0 3px 3px;
-      outline: none;
     }
     main.horizontal .resizer {
-      height: 7px;
+      height: 4px;
       width: 100%;
       cursor: row-resize;
     }
@@ -1001,8 +1000,8 @@
           aiOutput.innerHTML = `<div style="color:red;">No internet connection detected.</div>`;
           statusText.textContent = 'Offline';
           statusDot.classList.add('offline');
-          aiOutput.scrollTop = aiOutput.scrollHeight; // i'm not sure why i'm adding this, check without.
           continuousCheckConnectivity();  // this must have gotten removed somehow
+          aiOutput.scrollTop = aiOutput.scrollHeight; // i'm not sure why i'm adding this, check without.
           return;
         }
 
@@ -1020,7 +1019,7 @@
         saveChatHistory();
         renderChatHistory(); // Updates UI
         updateContextStats(); // Update metrics
-        continuousCheckConnectivity(); // why was this placed here? leaving for now
+        // continuousCheckConnectivity(); // why was this placed here? leaving for now
 
         // --- Prepare Content ---
         const selStart = codeEditor.selectionStart;
@@ -1788,41 +1787,77 @@
     // Enhanced Resizer
     function setupResizer() {
       console.log('-> setupResizer:');
-      resizer.addEventListener('mousedown', (e) => {
+
+      const startResize = (e) => {
         let isResizing = true;
         let startX = 0, startY = 0, startSize = 0;
 
-        if (isvertical) { startX = e.clientX; startSize = editorPanel.offsetWidth; }
-        else { startY = e.clientY; startSize = editorPanel.offsetHeight; }
+        // Get coordinates based on event type
+        const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+        const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+
+        // Debug: Check variable state at start
+        console.log('Resize Start. isvertical:', isvertical);
+
+        if (isvertical) { 
+            startX = clientX; 
+            startSize = editorPanel.offsetWidth; 
+        } else { 
+            startY = clientY; 
+            startSize = editorPanel.offsetHeight; 
+        }
 
         resizer.classList.add('dragging');
         document.body.style.cursor = isvertical ? 'col-resize' : 'row-resize';
         document.body.style.userSelect = 'none';
         e.preventDefault();
 
-        const onMouseMove = (e) => {
+        const onMove = (moveEvent) => {
           if (!isResizing) return;
+          
+          // Get move coordinates
+          const moveX = moveEvent.type.includes('touch') ? moveEvent.touches[0].clientX : moveEvent.clientX;
+          const moveY = moveEvent.type.includes('touch') ? moveEvent.touches[0].clientY : moveEvent.clientY;
+
           if (isvertical) {
-            const newWidth = Math.max(200, startSize + e.clientX - startX);
-            editorPanel.style.width = `${newWidth}px`;console.log('-> editorPanel width=',editorPanel.style.width);
+            // HORIZONTAL ADJUSTMENT (Width)
+            const newWidth = Math.max(200, startSize + moveX - startX);
+            editorPanel.style.width = `${newWidth}px`;
+            // console.log('-> editorPanel width=', editorPanel.style.width);
           } else {
-            const newHeight = Math.max(100, startSize + e.clientY - startY);
-            editorPanel.style.height = `${newHeight}px`;console.log('-> editorPanel height=',editorPanel.style.height);
+            // VERTICAL ADJUSTMENT (Height)
+            const newHeight = Math.max(100, startSize + moveY - startY);
+            editorPanel.style.height = `${newHeight}px`;
+            // console.log('-> editorPanel height=', editorPanel.style.height);
           }
         };
 
-        const onMouseUp = () => {
+        const onEnd = () => {
           isResizing = false;
           resizer.classList.remove('dragging');
           document.body.style.cursor = '';
           document.body.style.userSelect = '';
-          document.removeEventListener('mousemove', onMouseMove);
-          document.removeEventListener('mouseup', onMouseUp);
+          
+          // Cleanup Mouse
+          document.removeEventListener('mousemove', onMove);
+          document.removeEventListener('mouseup', onEnd);
+          // Cleanup Touch
+          document.removeEventListener('touchmove', onMove);
+          document.removeEventListener('touchend', onEnd);
         };
 
-        document.addEventListener('mousemove', onMouseMove);
-        document.addEventListener('mouseup', onMouseUp);
-      });
+        // Add Mouse Listeners
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onEnd);
+        // Add Touch Listeners
+        document.addEventListener('touchmove', onMove, { passive: false });
+        document.addEventListener('touchend', onEnd);
+      };
+
+      // Attach listeners
+      resizer.addEventListener('mousedown', startResize);
+      resizer.addEventListener('touchstart', startResize, { passive: false });
+      
       console.log('-> END setupResizer()');
     }
 
@@ -1830,19 +1865,17 @@
     btnLive.addEventListener('click', () => {
         liveMode = !liveMode; btnLive.classList.toggle('active', liveMode);
         const lastStatus = statusText.textContent;
-
-        // if (liveMode) {
-        //   let lastStatusBuff = lastStatus;
-        //   console.log('liveMode=',liveMode);
-        //   statusText.textContent = 'Live Mode Enabled';
-        //   setTimeout(() => statusText.textContent = lastStatus, 1000)
-        // }
-        // if (!liveMode) {
-        //   let lastStatusBuff = lastStatus;
-        //   console.log('liveMode=',liveMode);
-        //   statusText.textContent = 'Live Mode Disabled';
-        //   setTimeout(() => statusText.textContent = lastStatus, 1000)
-        // }
+        // if (!liveMode) { statusText.textContent = 'Live Mode Disabled'; }
+        if (liveMode) {
+          console.log('liveMode=',liveMode);
+          statusText.textContent = 'Live Mode Enabled';
+          setTimeout(() => statusText.textContent = lastStatus, 1000)
+        }
+        if (!liveMode) {
+          console.log('liveMode=',liveMode);
+          statusText.textContent = 'Live Mode Disabled';
+          setTimeout(() => statusText.textContent = lastStatus, 1000)
+        }
     });
 
     btnRefresh.addEventListener('click', updatePreview);
