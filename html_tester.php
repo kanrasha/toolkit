@@ -1829,17 +1829,19 @@
     btnLive.addEventListener('click', () => {
         liveMode = !liveMode; btnLive.classList.toggle('active', liveMode);
         const lastStatus = statusText.textContent;
-        // if (!liveMode) { statusText.textContent = 'Live Mode Disabled'; }
-        if (liveMode) {
-          console.log('liveMode=',liveMode);
-          statusText.textContent = 'Live Mode Enabled';
-          setTimeout(() => statusText.textContent = lastStatus, 1000)
-        }
-        if (!liveMode) {
-          console.log('liveMode=',liveMode);
-          statusText.textContent = 'Live Mode Disabled';
-          setTimeout(() => statusText.textContent = lastStatus, 1000)
-        }
+
+        // if (liveMode) {
+        //   let lastStatusBuff = lastStatus;
+        //   console.log('liveMode=',liveMode);
+        //   statusText.textContent = 'Live Mode Enabled';
+        //   setTimeout(() => statusText.textContent = lastStatus, 1000)
+        // }
+        // if (!liveMode) {
+        //   let lastStatusBuff = lastStatus;
+        //   console.log('liveMode=',liveMode);
+        //   statusText.textContent = 'Live Mode Disabled';
+        //   setTimeout(() => statusText.textContent = lastStatus, 1000)
+        // }
     });
 
     btnRefresh.addEventListener('click', updatePreview);
